@@ -10,8 +10,8 @@ import {
 
 test('resolves the Google web callback from SITE_ROOT', () => {
   assert.equal(
-    resolveGoogleRedirectUri('https://peacegame.earth/', 'web'),
-    'https://peacegame.earth/signin'
+    resolveGoogleRedirectUri('https://example.com/', 'web'),
+    'https://example.com/signin'
   );
   assert.equal(resolveGoogleRedirectUri(undefined, 'android'), undefined);
   assert.throws(

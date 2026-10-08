@@ -1,4 +1,4 @@
-import { Person, Person as SchemaPerson } from '@_linked/schema/shapes/Person';
+import { Person as SchemaPerson } from '@_linked/schema/shapes/Person';
 import { BackendProvider } from '@_linked/server-utils/utils/BackendProvider';
 import { LocationUpdateAction } from './shapes/LocationUpdateAction.js';
 import { AdministrativeArea } from '@_linked/schema/shapes/AdministrativeArea';
@@ -8,7 +8,6 @@ import {
   onAccountWillBeRemoved,
 } from '@_linked/auth/utils/events';
 import { UserAccount } from '@_linked/sioc/shapes/UserAccount';
-import PasswordHelper from '@_linked/auth/helpers/password';
 import { AuthCredential } from '@_linked/auth/shapes/AuthCredential';
 import { telephoneToWebID } from '@_linked/auth/utils/webID';
 import type { UserAccountData, UserData } from '@_linked/auth/types/auth';
@@ -225,7 +224,13 @@ export default class CapacitorBackendProvider extends BackendProvider {
   }
 
   async getBearerToken() {
-    // Implement logic to securely obtain the bearer token
+    const username = process.env.WA_D360_USERNAME;
+    const password = process.env.WA_D360_PASSWORD;
+    if (!username || !password) {
+      throw new Error(
+        'WA_D360_USERNAME and WA_D360_PASSWORD are required to request a WhatsApp token'
+      );
+    }
     const url = 'https://hub.360dialog.io/api/v2/token';
     try {
       const response = await fetch(url, {
@@ -234,8 +239,8 @@ export default class CapacitorBackendProvider extends BackendProvider {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: 'dev@semantu.com',
-          password: 'MakesSense01*',
+          username,
+          password,
         }),
       });
       const data = await response.json();
@@ -251,13 +256,20 @@ export default class CapacitorBackendProvider extends BackendProvider {
   }
 
   async sendMessage(url, bearerToken, apiKey, otp, phoneNumber) {
+    const templateNamespace = process.env.WA_D360_TEMPLATE_NAMESPACE;
+    const templateName = process.env.WA_D360_TEMPLATE_NAME;
+    if (!templateNamespace || !templateName) {
+      throw new Error(
+        'WA_D360_TEMPLATE_NAMESPACE and WA_D360_TEMPLATE_NAME are required to send a WhatsApp code'
+      );
+    }
     const payload = {
       messaging_product: 'whatsapp',
       to: phoneNumber,
       type: 'template',
       template: {
-        namespace: 'd884fc97_876c_41d6_b625_dcd644dbd941',
-        name: 'authentication_peace_game',
+        namespace: templateNamespace,
+        name: templateName,
         language: {
           code: 'en',
           policy: 'deterministic',

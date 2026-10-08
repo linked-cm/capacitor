@@ -118,6 +118,7 @@ export function classifySocialLoginError(error: unknown): SocialLoginError {
           .filter((value) => value !== undefined)
           .join(' ')
       : String(error);
+  // Each provider SDK phrases a user cancellation differently, including numeric codes.
   if (
     /cancel(?:led|ed|lation)?|popup[_\s-]+(?:was[_\s-]+)?closed(?:[_\s-]+by[_\s-]+user)?|access[_\s-]?denied|user.*denied|dismiss(?:ed|al)?|sign[_\s-]?in[_\s-]?cancelled|user[_\s-]?cancelled[_\s-]?authorize|12501|getcredentialcancellationexception|authorizationerror[^\d]*1001/i.test(
       details
@@ -251,6 +252,7 @@ export function buildGoogleLoginOptions(
   platform: string,
   scopes: string[]
 ): Record<string, never> | { scopes: string[] } {
+  // Android rejects a caller-supplied scopes list and uses the plugin default.
   return platform === 'android' ? {} : { scopes };
 }
 

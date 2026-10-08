@@ -1,6 +1,6 @@
 import './types.js';
 export * from './auth/SocialLoginClient.js';
-import './ontologies/lincd-capacitor.js';
+import './ontologies/lincd-capacitor.register.js';
 
 //SHAPES FIRST
 import './shapes/index.js';
