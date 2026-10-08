@@ -1,6 +1,15 @@
 .root {
   display: flex;
+  width: 100%;
   gap: 1rem;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.85) !important;
+  background: transparent !important;
+}
+
+.root:hover {
+  color: #032265 !important;
+  background: #fff !important;
 }
 
 .icon {
