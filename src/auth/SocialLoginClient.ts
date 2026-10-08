@@ -1,0 +1,343 @@
+import { Capacitor } from '@capacitor/core';
+import type {
+  InitializeOptions,
+  SocialLoginPlugin,
+} from '@capgo/capacitor-social-login';
+type OAuthProfilePayload = {
+  email?: string;
+  name?: string;
+  familyName?: string;
+  givenName?: string;
+  fullName?: string;
+  imageUrl?: string;
+};
+
+export type GoogleOAuthPayload = OAuthProfilePayload & {
+  authentication: { idToken: string };
+};
+
+export type AppleOAuthPayload = OAuthProfilePayload & {
+  identityToken: string;
+  authorizationCode?: string;
+  nonce: string;
+};
+
+export type FacebookOAuthPayload = {
+  accessToken: string;
+};
+
+type SocialLoginModule = { SocialLogin: SocialLoginPlugin };
+
+function readEnv(read: () => string | undefined): string | undefined {
+  try {
+    return read();
+  } catch {
+    return undefined;
+  }
+}
+
+const env = {
+  googleClientId: readEnv(() => process.env.GOOGLE_CLIENT_ID),
+  googleIosClientId: readEnv(() => process.env.GOOGLE_CLIENT_ID_IOS),
+  siteRoot: readEnv(() => process.env.SITE_ROOT),
+  appleClientId: readEnv(() => process.env.APPLE_SIGN_IN_CLIENT_ID),
+  appleRedirectUri: readEnv(() => process.env.APPLE_SIGN_IN_REDIRECT_URI),
+  facebookClientId: readEnv(() => process.env.FACEBOOK_CLIENT_ID),
+  facebookClientToken: readEnv(() => process.env.FACEBOOK_CLIENT_TOKEN),
+};
+
+let pluginModulePromise: Promise<SocialLoginModule> | undefined;
+let initializationPromise: Promise<void> | undefined;
+
+export type SocialLoginErrorKind =
+  | 'cancelled'
+  | 'configuration'
+  | 'network'
+  | 'provider';
+
+const SOCIAL_LOGIN_MESSAGES: Record<SocialLoginErrorKind, string> = {
+  cancelled: 'Sign-in was cancelled.',
+  configuration:
+    'Sign-in is not available right now. Please try another sign-in method.',
+  network:
+    "We couldn't connect to the sign-in service. Check your internet connection and try again.",
+  provider:
+    "We couldn't complete sign-in. Please try again or use another sign-in method.",
+};
+
+export class SocialLoginError extends Error {
+  constructor(
+    public readonly kind: SocialLoginErrorKind,
+    message: string,
+    public readonly cause?: unknown
+  ) {
+    super(message);
+    this.name = 'SocialLoginError';
+  }
+}
+
+function configurationError(detail: string): SocialLoginError {
+  return new SocialLoginError(
+    'configuration',
+    SOCIAL_LOGIN_MESSAGES.configuration,
+    new Error(detail)
+  );
+}
+
+export function resolveGoogleRedirectUri(
+  siteRoot: string | undefined,
+  platform: string
+): string | undefined {
+  if (platform !== 'web') return undefined;
+  const root = siteRoot?.trim();
+  if (!root) {
+    throw configurationError('SITE_ROOT is required for Google web login');
+  }
+  try {
+    return new URL('/signin', root).toString();
+  } catch (error) {
+    throw new SocialLoginError(
+      'configuration',
+      SOCIAL_LOGIN_MESSAGES.configuration,
+      { detail: 'SITE_ROOT is not a valid URL', error }
+    );
+  }
+}
+
+export function classifySocialLoginError(error: unknown): SocialLoginError {
+  if (error instanceof SocialLoginError) return error;
+  const details =
+    error && typeof error === 'object'
+      ? [
+          error instanceof Error ? error.message : undefined,
+          (error as { message?: unknown }).message,
+          (error as { error?: unknown }).error,
+          (error as { code?: unknown }).code,
+          (error as { errorCode?: unknown }).errorCode,
+        ]
+          .filter((value) => value !== undefined)
+          .join(' ')
+      : String(error);
+  if (
+    /cancel(?:led|ed|lation)?|popup[_\s-]+(?:was[_\s-]+)?closed(?:[_\s-]+by[_\s-]+user)?|access[_\s-]?denied|user.*denied|dismiss(?:ed|al)?|sign[_\s-]?in[_\s-]?cancelled|user[_\s-]?cancelled[_\s-]?authorize|12501|getcredentialcancellationexception|authorizationerror[^\d]*1001/i.test(
+      details
+    )
+  ) {
+    return new SocialLoginError(
+      'cancelled',
+      SOCIAL_LOGIN_MESSAGES.cancelled,
+      error
+    );
+  }
+  if (/network|fetch|offline/i.test(details)) {
+    return new SocialLoginError(
+      'network',
+      SOCIAL_LOGIN_MESSAGES.network,
+      error
+    );
+  }
+  return new SocialLoginError(
+    'provider',
+    SOCIAL_LOGIN_MESSAGES.provider,
+    error
+  );
+}
+
+async function loadPluginModule(): Promise<SocialLoginModule> {
+  if (!pluginModulePromise) {
+    pluginModulePromise = import('@capgo/capacitor-social-login').catch(
+      (error) => {
+        pluginModulePromise = undefined;
+        throw error;
+      }
+    );
+  }
+  return pluginModulePromise;
+}
+
+export function initializeSocialLogin(): Promise<void> {
+  if (!initializationPromise) {
+    initializationPromise = loadPluginModule()
+      .then(({ SocialLogin }) => {
+        const platform = Capacitor.getPlatform();
+        const options: InitializeOptions = {};
+
+        if (env.googleClientId) {
+          options.google = {
+            webClientId: env.googleClientId,
+            iOSClientId: env.googleIosClientId,
+            iOSServerClientId: env.googleClientId,
+            redirectUrl: resolveGoogleRedirectUri(env.siteRoot, platform),
+            mode: 'online',
+          };
+        }
+        if (platform === 'ios') {
+          options.apple = {};
+        } else if (
+          platform === 'web' &&
+          env.appleClientId &&
+          env.appleRedirectUri
+        ) {
+          options.apple = {
+            clientId: env.appleClientId,
+            redirectUrl: env.appleRedirectUri,
+          };
+        }
+        if (env.facebookClientId) {
+          options.facebook = {
+            appId: env.facebookClientId,
+            clientToken: env.facebookClientToken,
+          };
+        }
+        return SocialLogin.initialize(options);
+      })
+      .catch((error) => {
+        initializationPromise = undefined;
+        throw classifySocialLoginError(error);
+      });
+  }
+  return initializationPromise;
+}
+
+export async function resumePendingSocialLoginRedirect(): Promise<boolean> {
+  if (typeof globalThis.window === 'undefined') return false;
+  let pendingOAuthState: string | null;
+  try {
+    pendingOAuthState =
+      globalThis.localStorage?.getItem('social_login_oauth_pending') ?? null;
+  } catch {
+    return false;
+  }
+
+  const callbackUrl = `${globalThis.location?.search ?? ''}&${
+    globalThis.location?.hash ?? ''
+  }`;
+  const hasResponse = /(?:^|[?#&])(code|access_token|id_token|error)=/i.test(
+    callbackUrl
+  );
+  const hasContext = /(?:^|[?#&])(state|iss)=/i.test(callbackUrl);
+  if (
+    Capacitor.getPlatform() !== 'web' ||
+    pendingOAuthState === null ||
+    !globalThis.window.opener ||
+    !hasResponse ||
+    !hasContext
+  ) {
+    return false;
+  }
+
+  await initializeSocialLogin();
+  return true;
+}
+
+export function isAppleLoginSupported(): boolean {
+  return ['ios', 'web'].includes(Capacitor.getPlatform());
+}
+
+export function createAppleNonce(): string {
+  const bytes = new Uint8Array(32);
+  globalThis.crypto.getRandomValues(bytes);
+  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join(
+    ''
+  );
+  const encoded =
+    typeof globalThis.btoa === 'function'
+      ? globalThis.btoa(binary)
+      : Buffer.from(bytes).toString('base64');
+  return encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+export function buildGoogleLoginOptions(
+  platform: string,
+  scopes: string[]
+): Record<string, never> | { scopes: string[] } {
+  return platform === 'android' ? {} : { scopes };
+}
+
+export async function loginWithGoogle(
+  scopes = ['email', 'profile']
+): Promise<GoogleOAuthPayload> {
+  if (!env.googleClientId) {
+    throw configurationError('GOOGLE_CLIENT_ID is not configured');
+  }
+  await initializeSocialLogin();
+  try {
+    const { result } = await (
+      await loadPluginModule()
+    ).SocialLogin.login({
+      provider: 'google',
+      options: buildGoogleLoginOptions(Capacitor.getPlatform(), scopes),
+    });
+    if (result.responseType !== 'online' || !result.idToken) {
+      throw new Error('Google login did not return an ID token');
+    }
+    return { authentication: { idToken: result.idToken } };
+  } catch (error) {
+    throw classifySocialLoginError(error);
+  }
+}
+
+export async function loginWithApple(
+  scopes = ['email', 'name']
+): Promise<AppleOAuthPayload> {
+  if (!isAppleLoginSupported()) {
+    throw new SocialLoginError(
+      'configuration',
+      'Apple sign-in is not available on this device.'
+    );
+  }
+  if (Capacitor.getPlatform() === 'web') {
+    if (!env.appleClientId) {
+      throw configurationError('APPLE_SIGN_IN_CLIENT_ID is not configured');
+    }
+    if (!env.appleRedirectUri) {
+      throw configurationError('APPLE_SIGN_IN_REDIRECT_URI is not configured');
+    }
+  }
+  await initializeSocialLogin();
+  const nonce = createAppleNonce();
+  try {
+    const { result } = await (
+      await loadPluginModule()
+    ).SocialLogin.login({
+      provider: 'apple',
+      options: { scopes, nonce },
+    });
+    if (!result.idToken) {
+      throw new Error('Apple login did not return an ID token');
+    }
+    return {
+      email: result.profile.email,
+      givenName: result.profile.givenName,
+      familyName: result.profile.familyName,
+      identityToken: result.idToken,
+      authorizationCode: result.authorizationCode,
+      nonce,
+    };
+  } catch (error) {
+    throw classifySocialLoginError(error);
+  }
+}
+
+export async function loginWithFacebook(
+  permissions = ['email', 'public_profile']
+): Promise<FacebookOAuthPayload> {
+  if (!env.facebookClientId) {
+    throw configurationError('FACEBOOK_CLIENT_ID is not configured');
+  }
+  await initializeSocialLogin();
+  try {
+    const { result } = await (
+      await loadPluginModule()
+    ).SocialLogin.login({
+      provider: 'facebook',
+      options: { permissions, limitedLogin: false },
+    });
+    if (!result.accessToken?.token) {
+      throw new Error('Facebook login did not return an access token');
+    }
+    return { accessToken: result.accessToken.token };
+  } catch (error) {
+    throw classifySocialLoginError(error);
+  }
+}
