@@ -45,6 +45,7 @@ export const SigninWithWhatsappButton = ({
   const [phoneNumber, setPhoneNumber] = React.useState('');
   const [phoneNumberField, setPhoneNumberField] = React.useState(false);
   const [isLoading, setLoading] = React.useState(false);
+  const [showPhoneError, setShowPhoneError] = React.useState(false);
   const isValid = isPhoneValid(phoneNumber);
 
   const auth = useAuth();
@@ -72,12 +73,12 @@ export const SigninWithWhatsappButton = ({
   };
 
   const sendWhatsappMessage = (phone: string) => {
-    setLoading(true);
     if (!isValid) {
-      setLoading(false);
-      setPhoneNumber('');
+      setShowPhoneError(true);
       return;
     }
+    setShowPhoneError(false);
+    setLoading(true);
     Server.call(packageName, 'generateOTPWhatsapp', phone)
       .then(() => {
         setOTPField(true);
@@ -111,25 +112,30 @@ export const SigninWithWhatsappButton = ({
           alt="loading"
         />
       ) : phoneNumberField && !otpField ? (
-        <>
-          <PhoneInput
-            defaultCountry="us"
-            value={phoneNumber}
-            onChange={(nextPhone) => setPhoneNumber(nextPhone)}
-            inputProps={{
-              placeholder: '+1 555 123 4567',
-            }}
-          />
-          {!isValid && phoneNumber !== '' ? (
-            <div style={{ color: 'red' }}>Phone is not valid</div>
+        <div className={style.phoneStep}>
+          <div className={style.phoneRow}>
+            <PhoneInput
+              className={style.phoneInput}
+              defaultCountry="us"
+              value={phoneNumber}
+              onChange={(nextPhone) => setPhoneNumber(nextPhone)}
+              inputProps={{
+                placeholder: '+1 555 123 4567',
+              }}
+            />
+            <button
+              type="button"
+              className={style.signButton}
+              aria-label="Send code"
+              onClick={() => sendWhatsappMessage(phoneNumber)}
+            >
+              <img src={asset('/images/signButton.png')} alt="" />
+            </button>
+          </div>
+          {showPhoneError && !isValid ? (
+            <div className={style.phoneError}>Phone is not valid</div>
           ) : null}
-          <img
-            src={asset('/images/signButton.png')}
-            className={style.signButton}
-            alt="Send code"
-            onClick={() => sendWhatsappMessage(phoneNumber)}
-          />
-        </>
+        </div>
       ) : (
         <>
           <h3>Enter your OTP code</h3>
