@@ -3,7 +3,7 @@ export * from './auth/SocialLoginClient.js';
 import './ontologies/lincd-capacitor.js';
 
 //SHAPES FIRST
-import './shapes/LocationUpdateAction.js';
+import './shapes/index.js';
 
 //THEN COMPONENTS
 import './components/LocationEnabler.js';
