@@ -1,3 +1,14 @@
 lib
 node_modules
 *.tsbuildinfo
+
+node_modules/
+lib/
+yarn.lock
+*.log
+.DS_Store
+
+# tsc sourcemap output — always in lib/, never src/.
+# (.d.ts not ignored — hand-written type declarations like colors.d.ts
+#  are legit src files.)
+src/**/*.js.map
