@@ -55,7 +55,7 @@
   "dependencies": {
     "@_linked/auth": "^1.2.3",
     "@_linked/core": "^2.2.1",
-    "@_linked/primitives": "^1.6.0",
+    "@_linked/primitives": "^1.7.0",
     "@_linked/react": "^1.1.0",
     "@_linked/schema": "~1.0",
     "@_linked/server-utils": "~1.0",
