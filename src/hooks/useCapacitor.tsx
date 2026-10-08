@@ -33,8 +33,7 @@ export function CapacitorProvider({ children }: CapacitorProviderProps) {
     App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
       // use URL constructor to parse the URL
       // example:
-      // https://beerswift.com/tabs/tab2 --> /tabs/tab2
-      // https://www.peacegame.earth/tabs --> /tabs
+      // https://example.com/tabs/tab2 --> /tabs/tab2
       const url = new URL(event.url);
 
       // extract the path from the URL

@@ -22,8 +22,6 @@ jobs:
       contents: read
       pull-requests: write
     with:
-      # Left false so a package with no test script passes instead of failing on a missing one.
-      # Set to true — and `test-script` to the unit-only script where `test` is not CI-safe —
-      # once this package has a suite that must exist.
-      require-tests: false
+      # This package has a unit suite (`npm test`). Require it so a missing script fails CI.
+      require-tests: true
       run-e2e: false

@@ -1,6 +1,6 @@
 {
   "name": "@linked.cm/capacitor",
-  "description": "",
+  "description": "Native app helpers for sign-in, safe area, location, and updates.",
   "author": {
     "name": "",
     "email": "",
@@ -20,6 +20,7 @@
   "license": "ISC",
   "scripts": {
     "start": "linked dev",
+    "test": "npm run build-esm && node --test tests/*.test.mjs",
     "build": "rimraf ./lib && npm run build-esm && npm run copy-to-lib",
     "build-esm": "echo \"compiling ESM\" && rimraf ./lib/esm && tsc -p tsconfig-esm.json",
     "copy-to-lib": "echo 'copying CSS + JSON assets to lib folder' && copyfiles -u 1 'src/**/*.css' 'src/**/*.json' lib/esm"

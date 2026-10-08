@@ -83,6 +83,9 @@ export const SigninWithWhatsappButton = ({
       .then(() => {
         setOTPField(true);
       })
+      .catch(() => {
+        alert('Could not send the code. Please try again.');
+      })
       .finally(() => {
         setLoading(false);
       });

@@ -43,6 +43,13 @@ export const LocationEnabler = ({
   };
   const handleEnableLocation = (checked: boolean) => {
     setEnableLocation(checked);
+    if (!checked) {
+      if (userAccount) {
+        userAccount.enabledLocationServices = false;
+      }
+      onEnableLocationChange?.(false);
+      return;
+    }
     getLocation();
   };
 
