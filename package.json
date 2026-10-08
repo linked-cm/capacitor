@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+ssh://git@github.com/linked-cm/capacitor.git"
   },
-  "version": "1.0.0",
+  "version": "0.0.0",
   "linkedPackage": true,
   "type": "module",
   "main": "lib/esm/index.js",
