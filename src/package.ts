@@ -1,16 +1,30 @@
-import {linkedPackage} from '@_linked/core/utils/Package';
+import { linkedPackage } from '@_linked/core/utils/Package';
+import { createLinkedComponentFn } from '@_linked/react/utils/LinkedComponent';
 
-// `linkedComponent` is deliberately not destructured here: it is not part of core's
-// `LinkedPackageObject`. Component binding lives in `@_linked/react` — import
-// `linkedComponent` from `@_linked/react/utils/LinkedComponent` in a package that needs it,
-// so a package with no UI does not depend on React to declare its shapes.
-export const {
+const {
   linkedShape,
   linkedUtil,
   linkedOntology,
   registerPackageExport,
+  registerPackageModule,
+  getPackageShape,
   packageExports,
   packageName,
-  getPackageShape
-
 } = linkedPackage('@linked.cm/capacitor');
+
+const linkedComponent = createLinkedComponentFn(
+  registerPackageExport,
+  () => {}
+);
+
+export {
+  linkedComponent,
+  linkedShape,
+  linkedUtil,
+  linkedOntology,
+  registerPackageExport,
+  registerPackageModule,
+  getPackageShape,
+  packageExports,
+  packageName,
+};
