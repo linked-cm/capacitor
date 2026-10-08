@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import style from './SigninWithGoogleButton.module.css';
-import { Button } from '@_linked/mui-base/components/Button';
+import { Button } from '@_linked/primitives/components/Button';
 import { cl } from '@_linked/react/utils/ClassNames';
 import { useAuth } from '@_linked/auth/hooks/useAuth';
 import type { AuthenticationResult } from '@_linked/auth/types/auth';
@@ -19,11 +19,11 @@ interface SigninWithGoogleButtonProps
   restProps?: any;
 }
 export const SigninWithGoogleButton = ({
-  label = 'Sign in with Google', // default text button
-  scopes = ['profile', 'email'], // default scopes from google
-  className, // additional CSS classNames to apply to the button
-  onCallback, // callback function invoked when the Google authentication is successful
-  onLoadingChange, // callback function invoked when the loading state changes, you can pass a function to handle the loading state when call the server
+  label = 'Sign in with Google',
+  scopes = ['profile', 'email'],
+  className,
+  onCallback,
+  onLoadingChange,
   restProps,
   disabled: disabledByCaller = false,
   ...buttonProps
@@ -32,7 +32,7 @@ export const SigninWithGoogleButton = ({
   const { t } = useTranslate();
   let prefix = 'signIn';
 
-  const [loading, setLoading] = useState(false); // loading spinner
+  const [loading, setLoading] = useState(false);
   const loginInFlight = useRef(false);
 
   const signInWithGoogle = async () => {
@@ -59,15 +59,19 @@ export const SigninWithGoogleButton = ({
 
   return (
     <Button
+      type="button"
       className={cl(style.root, className)}
-      variant="outlined"
-      fullWidth
-      startIcon={
-        <svg
-          className={style.icon}
-          preserveAspectRatio="xMidYMid"
-          viewBox="0 0 256 262"
-        >
+      variant="outline"
+      {...restProps}
+      {...buttonProps}
+      onClick={signInWithGoogle}
+      disabled={loading || disabledByCaller || restProps?.disabled}
+    >
+      <svg
+        className={style.icon}
+        preserveAspectRatio="xMidYMid"
+        viewBox="0 0 256 262"
+      >
           <path
             fill="#4285F4"
             d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027"
@@ -84,13 +88,7 @@ export const SigninWithGoogleButton = ({
             fill="#EB4335"
             d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251"
           />
-        </svg>
-      }
-      {...restProps}
-      {...buttonProps}
-      onClick={signInWithGoogle}
-      disabled={loading || disabledByCaller || restProps?.disabled}
-    >
+      </svg>
       {t(prefix + '.google', label)}
     </Button>
   );

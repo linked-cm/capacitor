@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import style from './SigninWithFacebookButton.module.css';
-import { Button } from '@_linked/mui-base/components/Button';
+import { Button } from '@_linked/primitives/components/Button';
 import { cl } from '@_linked/react/utils/ClassNames';
 import { useAuth } from '@_linked/auth/hooks/useAuth';
 import type { AuthenticationResult } from '@_linked/auth/types/auth';
@@ -20,16 +20,16 @@ interface SigninWithFacebookButtonProps
 }
 
 export const SigninWithFacebookButton = ({
-  label = 'Sign in with Facebook', // default text button
-  scopes = ['email'], // default scopes
-  className, // additional CSS classNames to apply to the button
-  onCallback, // callback function invoked when the authentication is successful.
-  onLoadingChange, // callback function invoked when the loading state changes, you can pass a function to handle the loading state when call the server
+  label = 'Sign in with Facebook',
+  scopes = ['email'],
+  className,
+  onCallback,
+  onLoadingChange,
   restProps,
   disabled: disabledByCaller = false,
   ...buttonProps
 }: SigninWithFacebookButtonProps) => {
-  const [loading, setLoading] = useState(false); // loading spinner
+  const [loading, setLoading] = useState(false);
 
   const auth = useAuth();
   const loginInFlight = useRef(false);
@@ -58,11 +58,15 @@ export const SigninWithFacebookButton = ({
 
   return (
     <Button
+      type="button"
       className={cl(style.root, className)}
-      variant="outlined"
-      fullWidth
-      startIcon={
-        <svg className={style.icon} width="24" height="24" fill="none">
+      variant="outline"
+      {...restProps}
+      {...buttonProps}
+      onClick={onSignin}
+      disabled={loading || disabledByCaller || restProps?.disabled}
+    >
+      <svg className={style.icon} width="24" height="24" fill="none">
           <g clipPath="url(#a)">
             <path
               d="M24 12c0-6.62742-5.3726-12-12-12C5.37258 0 0 5.37258 0 12c0 5.9895 4.3882 10.954 10.125 11.8542v-8.3854H7.07812V12H10.125V9.35625c0-3.0075 1.7916-4.66875 4.5326-4.66875 1.3125 0 2.6862.23438 2.6862.23438V7.875h-1.5132c-1.4906 0-1.9556.92508-1.9556 1.875V12h3.3281l-.532 3.4688H13.875v8.3854C19.6118 22.954 24 17.9895 24 12Z"
@@ -78,13 +82,7 @@ export const SigninWithFacebookButton = ({
               <path fill="#fff" d="M0 0h24v24H0z" />
             </clipPath>
           </defs>
-        </svg>
-      }
-      {...restProps}
-      {...buttonProps}
-      onClick={onSignin}
-      disabled={loading || disabledByCaller || restProps?.disabled}
-    >
+      </svg>
       {label}
     </Button>
   );

@@ -54,18 +54,14 @@
   "dependencies": {
     "@_linked/auth": "^1.2.3",
     "@_linked/core": "^2.2.1",
-    "@_linked/mui-base": "~1.0",
     "@_linked/primitives": "^1.6.0",
     "@_linked/react": "^1.1.0",
     "@_linked/schema": "~1.0",
     "@_linked/server-utils": "~1.0",
     "@_linked/sioc": "1.x",
-    "foaf": "~1.0",
     "google-libphonenumber": "3.2.33",
-    "profile-plus": "~1.0",
     "react-international-phone": "4.0.4",
-    "react-router-dom": "^6.22.3",
-    "react-select": "^3.1.0"
+    "react-router-dom": "^6.22.3"
   },
   "devDependencies": {
     "@_linked/cli": "^1.2",
