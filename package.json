@@ -1,6 +1,6 @@
 {
   "name": "@linked.cm/capacitor",
-  "description": "",
+  "description": "Native app helpers for sign-in, safe area, location, and updates.",
   "author": {
     "name": "",
     "email": "",
@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+ssh://git@github.com/linked-cm/capacitor.git"
   },
-  "version": "1.0.0",
+  "version": "0.0.0",
   "linkedPackage": true,
   "type": "module",
   "main": "lib/esm/index.js",
@@ -20,6 +20,7 @@
   "license": "ISC",
   "scripts": {
     "start": "linked dev",
+    "test": "npm run build-esm && node --test tests/*.test.mjs",
     "build": "rimraf ./lib && npm run build-esm && npm run copy-to-lib",
     "build-esm": "echo \"compiling ESM\" && rimraf ./lib/esm && tsc -p tsconfig-esm.json",
     "copy-to-lib": "echo 'copying CSS + JSON assets to lib folder' && copyfiles -u 1 'src/**/*.css' 'src/**/*.json' lib/esm"
@@ -52,13 +53,52 @@
     }
   },
   "dependencies": {
-    "@_linked/core": "^2.0"
+    "@_linked/auth": "^1.2.3",
+    "@_linked/core": "^2.2.1",
+    "@_linked/primitives": "^1.7.0",
+    "@_linked/react": "^1.1.0",
+    "@_linked/schema": "~1.0",
+    "@_linked/server-utils": "~1.0",
+    "@_linked/sioc": "1.x",
+    "google-libphonenumber": "3.2.33",
+    "react-international-phone": "4.0.4",
+    "react-router-dom": "^6.22.3"
   },
   "devDependencies": {
-    "@types/node": "^22.13.14",
     "@_linked/cli": "^1.2",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/dialog": "^7.0.0",
+    "@capacitor/geolocation": "^7.0.0",
+    "@capacitor/preferences": "^7.0.0",
+    "@capawesome/capacitor-app-update": "^7.2.0",
+    "@capgo/capacitor-social-login": "7.20.0",
+    "@capgo/capacitor-updater": "^7.4.0",
+    "@changesets/changelog-github": "^0.5.2",
+    "@changesets/cli": "^2.29.8",
+    "@tolgee/react": "^5.33.0",
+    "@types/node": "^20.12.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "capacitor-plugin-safe-area": "^4.0.3",
     "copyfiles": "^2.4.1",
     "rimraf": "^5.0.7",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "typescript-plugin-css-modules": "^5.1.0"
+  },
+  "peerDependencies": {
+    "@capacitor/app": ">=7 <8",
+    "@capacitor/core": ">=7 <8",
+    "@capacitor/dialog": ">=7 <8",
+    "@capacitor/geolocation": ">=7 <8",
+    "@capacitor/preferences": ">=7 <8",
+    "@capawesome/capacitor-app-update": ">=7 <8",
+    "@capgo/capacitor-social-login": "7.20.0",
+    "@capgo/capacitor-updater": ">=7 <8",
+    "@tolgee/react": ">=5 <6",
+    "capacitor-plugin-safe-area": ">=4 <5"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

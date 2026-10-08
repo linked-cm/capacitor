@@ -1,0 +1,22 @@
+.root {
+  display: flex;
+  width: 100%;
+  gap: 1rem;
+  height: 43px !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: #032265 !important;
+  border: 1px solid #032265 !important;
+  background: #fff !important;
+}
+
+.root:hover {
+  color: #032265 !important;
+  background: #f4f6fb !important;
+}
+
+.icon {
+  width: 25px;
+  height: 25px;
+}
