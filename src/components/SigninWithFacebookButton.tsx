@@ -19,6 +19,13 @@ interface SigninWithFacebookButtonProps
   restProps?: any;
 }
 
+/**
+ * Facebook sign-in button.
+ *
+ * `@_linked/auth` 3 does not verify Facebook tokens yet, so its `signinOAuth` refuses the
+ * `facebook` provider: after the prompt, `onCallback` receives
+ * `{ error: 'Unsupported OAuth provider' }`. Hide this button until auth accepts Facebook.
+ */
 export const SigninWithFacebookButton = ({
   label = 'Sign in with Facebook',
   scopes = ['email'],

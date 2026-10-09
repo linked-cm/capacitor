@@ -35,6 +35,14 @@ import { SigninWithGoogleButton } from '@linked.cm/capacitor/components/SigninWi
 
 Google web login needs `GOOGLE_CLIENT_ID` and `SITE_ROOT` (the callback is `{SITE_ROOT}/signin`). Apple on the web needs `APPLE_SIGN_IN_CLIENT_ID` and `APPLE_SIGN_IN_REDIRECT_URI`. Facebook needs `FACEBOOK_CLIENT_ID`.
 
+Sign-in is verified by `@_linked/auth` 3:
+
+- **Apple**: the button asks the server for a single-use nonce (`createOAuthNonce`) and requests the identity token with it; `signinWithApple(auth, scopes)` does the same outside the button. The server needs `APPLE_CLIENT_ID` (web, the Services ID) and/or `APPLE_CLIENT_ID_IOS` (the app's bundle ID), or it rejects every Apple sign-in. Calling `loginWithApple` yourself with a nonce the server did not issue gets the sign-in rejected.
+- **Google**: the server needs `GOOGLE_CLIENT_ID` (and `GOOGLE_CLIENT_ID_IOS` for iOS).
+- **Facebook**: auth 3 does not verify Facebook tokens yet and answers `{ error: 'Unsupported OAuth provider' }`. Hide the Facebook button until it does.
+- When the provider's email belongs to an existing account that signed in another way, `onCallback` gets `{ error, action: 'sign_in_to_link' }`. Sign the user in the way they did before, then call `useAuth().linkOAuthIdentity`.
+- An app with an RPC exposure list must expose auth's `createOAuthNonce: 'public'` for Apple sign-in, and `linkOAuthIdentity: 'user'` to link a provider.
+
 WhatsApp sign-in asks the backend to send a code, then validates it. The server reads:
 
 - `WA_D360_API_KEY`

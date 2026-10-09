@@ -6,6 +6,7 @@ import {
   createAppleNonce,
   classifySocialLoginError,
   resolveGoogleRedirectUri,
+  signinWithApple,
 } from '../lib/esm/auth/SocialLoginClient.js';
 
 test('resolves the Google web callback from SITE_ROOT', () => {
@@ -97,3 +98,56 @@ for (const provider of ['Apple', 'Google', 'Facebook']) {
     );
   });
 }
+
+test('signs in with Apple using the nonce the server issued', async () => {
+  const calls = [];
+  const auth = {
+    createOAuthNonce: async () => {
+      calls.push('createOAuthNonce');
+      return { nonce: 'server.nonce.hmac', expiresAt: '2030-01-01T00:00:00Z' };
+    },
+    signinOAuth: async (provider, payload) => {
+      calls.push(['signinOAuth', provider, payload]);
+      return { auth: {}, accessToken: 'a' };
+    },
+  };
+  const login = async (scopes, nonce) => {
+    calls.push(['login', scopes, nonce]);
+    return { identityToken: 'token', nonce };
+  };
+
+  const result = await signinWithApple(auth, ['email'], login);
+
+  assert.deepEqual(result, { auth: {}, accessToken: 'a' });
+  assert.deepEqual(calls, [
+    'createOAuthNonce',
+    ['login', ['email'], 'server.nonce.hmac'],
+    ['signinOAuth', 'apple', { identityToken: 'token', nonce: 'server.nonce.hmac' }],
+  ]);
+});
+
+test('Apple sign-in never sends a nonce generated on the device', async () => {
+  const source = await readFile(
+    new URL('../lib/esm/auth/SocialLoginClient.js', import.meta.url),
+    'utf8'
+  );
+  const loginWithApple = source.slice(
+    source.indexOf('export async function loginWithApple'),
+    source.indexOf('export async function signinWithApple')
+  );
+  assert.doesNotMatch(loginWithApple, /createAppleNonce\(/);
+  const button = await readFile(
+    new URL('../lib/esm/components/SigninWithAppleButton.js', import.meta.url),
+    'utf8'
+  );
+  assert.match(button, /signinWithApple\(auth,/);
+});
+
+test('WhatsApp sign-in passes the refresh token expiry to updateAuth', async () => {
+  const source = await readFile(
+    new URL('../lib/esm/components/SignInWithWhatsapp.js', import.meta.url),
+    'utf8'
+  );
+  assert.match(source, /refreshTokenExpiresIn:\s*response\.refreshTokenExpiresIn/);
+  assert.match(source, /refreshTokenExpiresAt:\s*response\.refreshTokenExpiresAt/);
+});

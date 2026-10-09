@@ -7,7 +7,7 @@ import type { AuthenticationResult } from '@_linked/auth/types/auth';
 import {
   classifySocialLoginError,
   isAppleLoginSupported,
-  loginWithApple,
+  signinWithApple,
 } from '../auth/SocialLoginClient.js';
 
 interface SigninWithAppleButtonProps
@@ -42,8 +42,8 @@ export const SigninWithAppleButton = ({
     let result: AuthenticationResult | undefined;
     try {
       onLoadingChange?.(true);
-      const payload = await loginWithApple(scopes.split(/\s+/).filter(Boolean));
-      result = await auth.signinOAuth('apple', payload);
+      // the server issues the nonce and redeems it once (@_linked/auth 3)
+      result = await signinWithApple(auth, scopes.split(/\s+/).filter(Boolean));
     } catch (error) {
       const loginError = classifySocialLoginError(error);
       if (loginError.kind !== 'cancelled') {
