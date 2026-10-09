@@ -19,7 +19,8 @@ export type GoogleOAuthPayload = OAuthProfilePayload & {
 export type AppleOAuthPayload = OAuthProfilePayload & {
   identityToken: string;
   authorizationCode?: string;
-  nonce: string;
+  /** The server-issued nonce the token was requested with, sent back for the server to redeem. */
+  nonce?: string;
 };
 
 export type FacebookOAuthPayload = {
@@ -235,6 +236,12 @@ export function isAppleLoginSupported(): boolean {
   return ['ios', 'web'].includes(Capacitor.getPlatform());
 }
 
+/**
+ * A random base64url nonce, generated on the device.
+ *
+ * @deprecated `@_linked/auth` 3 only accepts nonces it issued itself (`createOAuthNonce`), and
+ * rejects an Apple sign-in that carries any other nonce. `loginWithApple` no longer uses this.
+ */
 export function createAppleNonce(): string {
   const bytes = new Uint8Array(32);
   globalThis.crypto.getRandomValues(bytes);
@@ -279,8 +286,18 @@ export async function loginWithGoogle(
   }
 }
 
+/**
+ * Run the Apple sign-in prompt.
+ *
+ * @param nonce a nonce from `useAuth().createOAuthNonce()`. Apple puts it in the identity token
+ *   and it is returned in the payload, so the server can check it issued the nonce and redeem it
+ *   once. Without one the token carries no nonce, which `@_linked/auth` only accepts while
+ *   `AUTH_APPLE_NONCE` is `optional`. Do not pass a nonce the server did not issue: the server
+ *   rejects it.
+ */
 export async function loginWithApple(
-  scopes = ['email', 'name']
+  scopes = ['email', 'name'],
+  nonce?: string
 ): Promise<AppleOAuthPayload> {
   if (!isAppleLoginSupported()) {
     throw new SocialLoginError(
@@ -297,13 +314,12 @@ export async function loginWithApple(
     }
   }
   await initializeSocialLogin();
-  const nonce = createAppleNonce();
   try {
     const { result } = await (
       await loadPluginModule()
     ).SocialLogin.login({
       provider: 'apple',
-      options: { scopes, nonce },
+      options: nonce ? { scopes, nonce } : { scopes },
     });
     if (!result.idToken) {
       throw new Error('Apple login did not return an ID token');
@@ -314,11 +330,33 @@ export async function loginWithApple(
       familyName: result.profile.familyName,
       identityToken: result.idToken,
       authorizationCode: result.authorizationCode,
-      nonce,
+      ...(nonce ? { nonce } : {}),
     };
   } catch (error) {
     throw classifySocialLoginError(error);
   }
+}
+
+/** The part of `useAuth()` an Apple sign-in needs. */
+export type AppleSigninAuth = {
+  createOAuthNonce: () => Promise<{ nonce: string }>;
+  signinOAuth: (provider: 'apple', payload: AppleOAuthPayload) => Promise<any>;
+};
+
+/**
+ * Sign in with Apple the way `@_linked/auth` 3 verifies it: ask the server for a single-use
+ * nonce, request the identity token with it, and send both back to `signinOAuth`.
+ *
+ * @param login the prompt to run; replaceable for tests
+ */
+export async function signinWithApple(
+  auth: AppleSigninAuth,
+  scopes = ['email', 'name'],
+  login: typeof loginWithApple = loginWithApple
+) {
+  const { nonce } = await auth.createOAuthNonce();
+  const payload = await login(scopes, nonce);
+  return auth.signinOAuth('apple', payload);
 }
 
 export async function loginWithFacebook(

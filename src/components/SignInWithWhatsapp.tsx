@@ -57,10 +57,15 @@ export const SigninWithWhatsappButton = ({
     Server.call(packageName, 'validateOTPWhatsapp', phone, otp).then(
       (response) => {
         if (response && response.auth) {
+          // A browser gets the tokens as httpOnly cookies the server already set; only a
+          // native client (body transport) receives refreshToken. The expiry fields size the
+          // refresh token in native storage to the server's record.
           auth.updateAuth({
             auth: response.auth,
             accessToken: response.accessToken,
             refreshToken: response.refreshToken,
+            refreshTokenExpiresIn: response.refreshTokenExpiresIn,
+            refreshTokenExpiresAt: response.refreshTokenExpiresAt,
           });
           onSuccess(true);
         } else if (response?.error) {
