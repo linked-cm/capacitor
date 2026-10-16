@@ -195,59 +195,34 @@ export default class CapacitorBackendProvider extends BackendProvider {
   async generateOTPWhatsapp(phoneNumber) {
     const session = this.request.session;
     const baseUrl = 'https://waba-v2.360dialog.io';
-    const bearerToken = this.getBearerToken();
     const API_KEY = process.env.WA_D360_API_KEY;
+    const recipient = normalizeTelephone(phoneNumber).replace(/^\+/, '');
+    if (!/^\d{8,15}$/.test(recipient)) {
+      throw new Error('A valid WhatsApp phone number is required');
+    }
+    if (!API_KEY) {
+      throw new Error('WA_D360_API_KEY is required to send a WhatsApp code');
+    }
 
     const otp = this.generateOTP();
-    const message = `Your OTP for Whatsapp Auth is ${otp}`;
-    console.log('OTP', message);
-
-    // Save the OTP
-    session.otp = otp;
-
     const url = `${baseUrl}/messages`;
 
     try {
-      const response = await this.sendMessage(
-        url,
-        bearerToken,
-        API_KEY,
-        otp,
-        phoneNumber
-      );
+      const response = await this.sendMessage(url, API_KEY, otp, recipient);
+      if (!response.ok) {
+        console.error('WhatsApp code request rejected by provider:', response.status);
+        throw new Error('Could not send the code. Please try again.');
+      }
       const data = await response.json();
-      return { data };
+      if (!data?.messages?.[0]?.id) {
+        throw new Error('WhatsApp provider did not confirm the code request');
+      }
+      // Only make a code usable after the provider accepts the message.
+      session.otp = otp;
+      return { sent: true };
     } catch (error) {
-      console.error('Error sending message:', error.message);
-      throw error; // Propagate the error for handling at a higher level
-    }
-  }
-
-  async getBearerToken() {
-    const username = process.env.WA_D360_USERNAME;
-    const password = process.env.WA_D360_PASSWORD;
-    if (!username || !password) {
-      throw new Error(
-        'WA_D360_USERNAME and WA_D360_PASSWORD are required to request a WhatsApp token'
-      );
-    }
-    const url = 'https://hub.360dialog.io/api/v2/token';
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username,
-          password,
-        }),
-      });
-      const data = await response.json();
-      return data.access_token;
-    } catch (error) {
-      console.error('Error getting access token:', error.message);
-      throw error; // Propagate the error for handling at a higher level
+      console.error('WhatsApp code send failed:', error.message);
+      throw new Error('Could not send the code. Please try again.');
     }
   }
 
@@ -255,24 +230,19 @@ export default class CapacitorBackendProvider extends BackendProvider {
     return Math.floor(100000 + Math.random() * 900000);
   }
 
-  async sendMessage(url, bearerToken, apiKey, otp, phoneNumber) {
-    const templateNamespace = process.env.WA_D360_TEMPLATE_NAMESPACE;
+  async sendMessage(url, apiKey, otp, phoneNumber) {
     const templateName = process.env.WA_D360_TEMPLATE_NAME;
-    if (!templateNamespace || !templateName) {
-      throw new Error(
-        'WA_D360_TEMPLATE_NAMESPACE and WA_D360_TEMPLATE_NAME are required to send a WhatsApp code'
-      );
+    if (!templateName) {
+      throw new Error('WA_D360_TEMPLATE_NAME is required to send a WhatsApp code');
     }
     const payload = {
       messaging_product: 'whatsapp',
       to: phoneNumber,
       type: 'template',
       template: {
-        namespace: templateNamespace,
         name: templateName,
         language: {
-          code: 'en',
-          policy: 'deterministic',
+          code: process.env.WA_D360_TEMPLATE_LANGUAGE || 'en',
         },
         components: [
           {
@@ -302,7 +272,6 @@ export default class CapacitorBackendProvider extends BackendProvider {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `bearer ${bearerToken}`,
         'D360-API-KEY': apiKey,
       },
       body: JSON.stringify(payload),
