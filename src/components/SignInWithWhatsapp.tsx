@@ -51,6 +51,10 @@ export const SigninWithWhatsappButton = ({
   const auth = useAuth();
   const { t } = useTranslate();
   const prefix = 'signIn';
+  const otpLabel = t(
+    prefix + '.whatsappVerificationCode',
+    'WhatsApp verification code'
+  );
 
   const validateOTP = (phone: string, otp: string) => {
     if (!phone || !otp) return;
@@ -145,13 +149,15 @@ export const SigninWithWhatsappButton = ({
           ) : null}
         </div>
       ) : (
-        <>
+        <div className={style.otpStep}>
           <h3>Enter your OTP code</h3>
           <InputOTP
             maxLength={6}
             pattern={REGEXP_ONLY_DIGITS}
             inputMode="numeric"
             autoComplete="one-time-code"
+            aria-label={otpLabel}
+            containerClassName={style.otpInput}
             onComplete={(otp) => validateOTP(phoneNumber, otp)}
           >
             <InputOTPGroup>
@@ -160,7 +166,7 @@ export const SigninWithWhatsappButton = ({
               ))}
             </InputOTPGroup>
           </InputOTP>
-        </>
+        </div>
       )}
     </>
   );

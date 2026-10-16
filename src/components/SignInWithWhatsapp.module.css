@@ -85,6 +85,17 @@
   margin-top: 6px;
 }
 
+.otpStep {
+  width: 100%;
+  min-width: 0;
+}
+
+.otpInput {
+  max-width: 100%;
+  --otp-slot-size: clamp(32px, 11vw, 48px);
+  --otp-slot-gap: clamp(4px, 1.25vw, 8px);
+}
+
 .loading {
   width: 32px;
   height: 32px;
