@@ -12,6 +12,11 @@ import { AuthCredential } from '@_linked/auth/shapes/AuthCredential';
 import { telephoneToWebID } from '@_linked/auth/utils/webID';
 import type { UserAccountData, UserData } from '@_linked/auth/types/auth';
 import { normalizeTelephone } from './utils/helper.js';
+import {
+  AMBIGUOUS_TELEPHONE_IDENTITY,
+  AmbiguousTelephoneIdentityError,
+  resolveTelephoneAccount,
+} from './utils/telephoneAccount.js';
 
 export default class CapacitorBackendProvider extends BackendProvider {
   public accountShape: typeof UserAccount = UserAccount;
@@ -70,7 +75,7 @@ export default class CapacitorBackendProvider extends BackendProvider {
           const telephoneWebId = telephoneToWebID(normalizedPhone);
 
           // first, try to find account by telephone-based webID (for new users)
-          let account = await UserAccount.select((ua) => [
+          const webIdAccounts = await UserAccount.select((ua) => [
             ua.email,
             ua.accountOf.select((p) => [
               p.givenName,
@@ -82,8 +87,14 @@ export default class CapacitorBackendProvider extends BackendProvider {
               return ua.accountOf.equals({
                 id: telephoneWebId,
               });
-            })
-            .one();
+            });
+
+          const webIdResolution = resolveTelephoneAccount(webIdAccounts);
+          if (webIdResolution.kind === 'ambiguous') {
+            throw new AmbiguousTelephoneIdentityError(webIdResolution);
+          }
+          let account =
+            webIdResolution.kind === 'one' ? webIdResolution.account : null;
 
           if (account && account.accountOf) {
             console.log(
@@ -99,7 +110,7 @@ export default class CapacitorBackendProvider extends BackendProvider {
           console.log(
             `Account not found by webID, searching by telephone property for ${normalizedPhone}`
           );
-          account = await UserAccount.select((ua) => [
+          const telephoneAccounts = await UserAccount.select((ua) => [
             ua.email,
             ua.accountOf.select((p) => [
               p.givenName,
@@ -112,8 +123,16 @@ export default class CapacitorBackendProvider extends BackendProvider {
               return ua.accountOf.telephone
                 .equals(normalizedPhone)
                 .or(ua.accountOf.telephone.equals(legacyPhone));
-            })
-            .one();
+            });
+
+          const telephoneResolution = resolveTelephoneAccount(telephoneAccounts);
+          if (telephoneResolution.kind === 'ambiguous') {
+            throw new AmbiguousTelephoneIdentityError(telephoneResolution);
+          }
+          account =
+            telephoneResolution.kind === 'one'
+              ? telephoneResolution.account
+              : null;
 
           if (account && account.accountOf) {
             console.log(
@@ -185,6 +204,20 @@ export default class CapacitorBackendProvider extends BackendProvider {
         'Whatsapp. Phonenumber: ' + phoneIdentifier
       );
     } catch (err) {
+      if (err instanceof AmbiguousTelephoneIdentityError) {
+        console.warn(
+          'WhatsApp sign-in refused because the telephone matches multiple identities',
+          {
+            accountCount: err.resolution.accountIds.length,
+            personCount: err.resolution.personIds.length,
+          }
+        );
+        return {
+          error:
+            'Multiple accounts use this phone number. Please use another sign-in method or contact support.',
+          code: AMBIGUOUS_TELEPHONE_IDENTITY,
+        };
+      }
       console.error('validateOTPWhatsapp failed:', err);
       return {
         error: 'Sign-in failed. Please try again.',
