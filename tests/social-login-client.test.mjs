@@ -151,3 +151,14 @@ test('WhatsApp sign-in passes the refresh token expiry to updateAuth', async () 
   assert.match(source, /refreshTokenExpiresIn:\s*response\.refreshTokenExpiresIn/);
   assert.match(source, /refreshTokenExpiresAt:\s*response\.refreshTokenExpiresAt/);
 });
+
+test('WhatsApp verification uses an accessible numeric OTP field', async () => {
+  const source = await readFile(
+    new URL('../lib/esm/components/SignInWithWhatsapp.js', import.meta.url),
+    'utf8'
+  );
+  assert.match(source, /pattern:\s*REGEXP_ONLY_DIGITS/);
+  assert.match(source, /inputMode:\s*"numeric"/);
+  assert.match(source, /autoComplete:\s*"one-time-code"/);
+  assert.match(source, /"aria-label":\s*otpLabel/);
+});

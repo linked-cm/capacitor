@@ -1,5 +1,17 @@
 # @linked.cm/capacitor
 
+## 0.3.2
+
+### Patch Changes
+
+- [#12](https://github.com/linked-cm/capacitor/pull/12) [`f625398`](https://github.com/linked-cm/capacitor/commit/f625398e7be59d214663cf94f6fcddbe85b38f8d) Thanks [@abdipramana](https://github.com/abdipramana)! - Reject WhatsApp sign-in when a normalized telephone matches multiple identities instead of authenticating an arbitrary query result.
+
+## 0.3.1
+
+### Patch Changes
+
+- [#11](https://github.com/linked-cm/capacitor/pull/11) [`641906a`](https://github.com/linked-cm/capacitor/commit/641906a016d5d488096fcc8a3f3bb2c744b22d8e) Thanks [@carlenmy](https://github.com/carlenmy)! - Label the WhatsApp verification code input and keep its six numeric slots usable on narrow screens.
+
 ## 0.3.0
 
 ### Minor Changes
