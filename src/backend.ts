@@ -1,5 +1,6 @@
 import { Person as SchemaPerson } from '@_linked/schema/shapes/Person';
 import { BackendProvider } from '@_linked/server-utils/utils/BackendProvider';
+import { callable } from '@_linked/server-utils/utils/callable';
 import { LocationUpdateAction } from './shapes/LocationUpdateAction.js';
 import { AdministrativeArea } from '@_linked/schema/shapes/AdministrativeArea';
 import { Auth } from '@_linked/auth/utils/auth';
@@ -45,6 +46,7 @@ export default class CapacitorBackendProvider extends BackendProvider {
     offAccountWillBeRemoved(this.onAccountRemoved);
   }
 
+  @callable('public')
   async validateOTPWhatsapp(phoneIdentifier, OPT_Input) {
     try {
       if (!phoneIdentifier) {
@@ -229,6 +231,7 @@ export default class CapacitorBackendProvider extends BackendProvider {
     }
   }
 
+  @callable('public')
   async generateOTPWhatsapp(phoneNumber) {
     const session = this.request.session;
     const baseUrl = 'https://waba-v2.360dialog.io';
@@ -236,8 +239,6 @@ export default class CapacitorBackendProvider extends BackendProvider {
     const API_KEY = process.env.WA_D360_API_KEY;
 
     const otp = this.generateOTP();
-    const message = `Your OTP for Whatsapp Auth is ${otp}`;
-    console.log('OTP', message);
 
     // Save the OTP
     session.otp = otp;
