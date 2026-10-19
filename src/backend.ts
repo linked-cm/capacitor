@@ -75,7 +75,11 @@ export default class CapacitorBackendProvider extends BackendProvider {
           const telephoneWebId = telephoneToWebID(normalizedPhone);
 
           // first, try to find account by telephone-based webID (for new users)
-          const webIdAccounts = await UserAccount.select((ua) => [
+          // Query through the configured account shape. Applications can use a
+          // UserAccount subclass with a different target class, so querying the
+          // base SIOC shape would miss their existing accounts and create a
+          // duplicate telephone-only identity.
+          const webIdAccounts = await this.accountShape.select((ua) => [
             ua.email,
             ua.accountOf.select((p) => [
               p.givenName,
@@ -110,7 +114,7 @@ export default class CapacitorBackendProvider extends BackendProvider {
           console.log(
             `Account not found by webID, searching by telephone property for ${normalizedPhone}`
           );
-          const telephoneAccounts = await UserAccount.select((ua) => [
+          const telephoneAccounts = await this.accountShape.select((ua) => [
             ua.email,
             ua.accountOf.select((p) => [
               p.givenName,
