@@ -46,7 +46,6 @@ export const SigninWithWhatsappButton = ({
   const [phoneNumberField, setPhoneNumberField] = React.useState(false);
   const [isLoading, setLoading] = React.useState(false);
   const [showPhoneError, setShowPhoneError] = React.useState(false);
-  const [sendError, setSendError] = React.useState(false);
   const isValid = isPhoneValid(phoneNumber);
 
   const auth = useAuth();
@@ -88,18 +87,13 @@ export const SigninWithWhatsappButton = ({
       return;
     }
     setShowPhoneError(false);
-    setSendError(false);
     setLoading(true);
     Server.call(packageName, 'generateOTPWhatsapp', phone)
-      .then((response) => {
-        if (!response?.sent) {
-          setSendError(true);
-          return;
-        }
+      .then(() => {
         setOTPField(true);
       })
       .catch(() => {
-        setSendError(true);
+        alert('Could not send the code. Please try again.');
       })
       .finally(() => {
         setLoading(false);
@@ -153,11 +147,6 @@ export const SigninWithWhatsappButton = ({
           {showPhoneError && !isValid ? (
             <div className={style.phoneError}>Phone is not valid</div>
           ) : null}
-          {sendError && (
-            <div className={style.phoneError} role="alert">
-              Could not send the WhatsApp code. Please try again.
-            </div>
-          )}
         </div>
       ) : (
         <div className={style.otpStep}>
