@@ -1,5 +1,6 @@
 import { Person as SchemaPerson } from '@_linked/schema/shapes/Person';
 import { BackendProvider } from '@_linked/server-utils/utils/BackendProvider';
+import { callable } from '@_linked/server-utils/utils/callable';
 import { LocationUpdateAction } from './shapes/LocationUpdateAction.js';
 import { AdministrativeArea } from '@_linked/schema/shapes/AdministrativeArea';
 import { Auth } from '@_linked/auth/utils/auth';
@@ -45,6 +46,7 @@ export default class CapacitorBackendProvider extends BackendProvider {
     offAccountWillBeRemoved(this.onAccountRemoved);
   }
 
+  @callable('public')
   async validateOTPWhatsapp(phoneIdentifier, OPT_Input) {
     try {
       if (!phoneIdentifier) {
@@ -75,7 +77,11 @@ export default class CapacitorBackendProvider extends BackendProvider {
           const telephoneWebId = telephoneToWebID(normalizedPhone);
 
           // first, try to find account by telephone-based webID (for new users)
-          const webIdAccounts = await UserAccount.select((ua) => [
+          // Query through the configured account shape. Applications can use a
+          // UserAccount subclass with a different target class, so querying the
+          // base SIOC shape would miss their existing accounts and create a
+          // duplicate telephone-only identity.
+          const webIdAccounts = await this.accountShape.select((ua) => [
             ua.email,
             ua.accountOf.select((p) => [
               p.givenName,
@@ -110,7 +116,7 @@ export default class CapacitorBackendProvider extends BackendProvider {
           console.log(
             `Account not found by webID, searching by telephone property for ${normalizedPhone}`
           );
-          const telephoneAccounts = await UserAccount.select((ua) => [
+          const telephoneAccounts = await this.accountShape.select((ua) => [
             ua.email,
             ua.accountOf.select((p) => [
               p.givenName,
@@ -225,6 +231,7 @@ export default class CapacitorBackendProvider extends BackendProvider {
     }
   }
 
+  @callable('public')
   async generateOTPWhatsapp(phoneNumber) {
     const session = this.request.session;
     const baseUrl = 'https://waba-v2.360dialog.io';
