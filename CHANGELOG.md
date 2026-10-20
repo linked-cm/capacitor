@@ -1,5 +1,11 @@
 # @linked.cm/capacitor
 
+## 0.3.4
+
+### Patch Changes
+
+- [#18](https://github.com/linked-cm/capacitor/pull/18) [`b3a3633`](https://github.com/linked-cm/capacitor/commit/b3a36335996ac527ff97ae18a8b2b35b06a3e15e) Thanks [@abdipramana](https://github.com/abdipramana)! - Invalidate previous WhatsApp OTPs when a resend fails or is not confirmed by the provider.
+
 ## 0.3.3
 
 ### Patch Changes
