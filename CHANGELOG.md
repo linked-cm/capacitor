@@ -1,5 +1,12 @@
 # @linked.cm/capacitor
 
+## 0.3.3
+
+### Patch Changes
+
+- [#15](https://github.com/linked-cm/capacitor/pull/15) [`d0d7d2e`](https://github.com/linked-cm/capacitor/commit/d0d7d2e5d8b016e5ff4f30b55aefef099df05ef9) Thanks [@abdipramana](https://github.com/abdipramana)! - Use the configured account shape when resolving existing WhatsApp identities,
+  declare both WhatsApp OTP endpoints public, and stop logging plaintext OTPs.
+
 ## 0.3.2
 
 ### Patch Changes
