@@ -245,6 +245,8 @@ export default class CapacitorBackendProvider extends BackendProvider {
     }
 
     const otp = this.generateOTP();
+    // A resend invalidates an earlier code even when the provider rejects it.
+    delete session.otp;
     const url = `${baseUrl}/messages`;
 
     try {
