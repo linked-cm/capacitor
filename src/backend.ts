@@ -245,10 +245,6 @@ export default class CapacitorBackendProvider extends BackendProvider {
     }
 
     const otp = this.generateOTP();
-
-    // Save the OTP
-    session.otp = otp;
-
     const url = `${baseUrl}/messages`;
 
     try {
