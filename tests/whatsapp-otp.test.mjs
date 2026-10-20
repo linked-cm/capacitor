@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import CapacitorBackendProvider from '../lib/esm/backend.js';
 
-const makeProvider = () => {
+const makeProvider = (session = {}) => {
   const provider = Object.create(CapacitorBackendProvider.prototype);
-  Object.defineProperty(provider, 'request', { value: { session: {} } });
+  Object.defineProperty(provider, 'request', { value: { session } });
   provider.generateOTP = () => 123456;
   return provider;
 };
@@ -40,12 +40,12 @@ test('WhatsApp send uses the API key and configured authentication template', as
   assert.equal(provider.request.session.otp, 123456);
 });
 
-test('a rejected WhatsApp request never enables an OTP', async (t) => {
+test('a rejected WhatsApp resend invalidates the earlier OTP', async (t) => {
   setEnv(t, 'WA_D360_API_KEY', 'test-key');
   setEnv(t, 'WA_D360_TEMPLATE_NAME', 'authentication_test');
   t.mock.method(globalThis, 'fetch', async () => ({ ok: false, status: 401 }));
   t.mock.method(console, 'error', () => {});
-  const provider = makeProvider();
+  const provider = makeProvider({ otp: 654321 });
   await assert.rejects(
     provider.generateOTPWhatsapp('15551234567'),
     /Could not send the code/
@@ -53,12 +53,12 @@ test('a rejected WhatsApp request never enables an OTP', async (t) => {
   assert.equal(provider.request.session.otp, undefined);
 });
 
-test('a provider response without a message id never enables an OTP', async (t) => {
+test('an unconfirmed WhatsApp resend invalidates the earlier OTP', async (t) => {
   setEnv(t, 'WA_D360_API_KEY', 'test-key');
   setEnv(t, 'WA_D360_TEMPLATE_NAME', 'authentication_test');
   t.mock.method(globalThis, 'fetch', async () => ({ ok: true, json: async () => ({}) }));
   t.mock.method(console, 'error', () => {});
-  const provider = makeProvider();
+  const provider = makeProvider({ otp: 654321 });
   await assert.rejects(
     provider.generateOTPWhatsapp('15551234567'),
     /Could not send the code/
