@@ -95,27 +95,10 @@ export default class CapacitorBackendProvider extends BackendProvider {
               });
             });
 
-          const webIdResolution = resolveTelephoneAccount(webIdAccounts);
-          if (webIdResolution.kind === 'ambiguous') {
-            throw new AmbiguousTelephoneIdentityError(webIdResolution);
-          }
-          let account =
-            webIdResolution.kind === 'one' ? webIdResolution.account : null;
-
-          if (account && account.accountOf) {
-            console.log(
-              `Found account by telephone-based webID for phone number ${phoneIdentifier}`
-            );
-            return {
-              account,
-              person: account.accountOf,
-            };
-          }
-
-          // if not found, try to find by telephone property (for old users with normal ID)
-          console.log(
-            `Account not found by webID, searching by telephone property for ${normalizedPhone}`
-          );
+          // Also query the telephone property even when the deterministic WebID
+          // exists. Legacy email accounts may own the same number; returning the
+          // WebID match early would hide that conflict and authenticate the
+          // duplicate account.
           const telephoneAccounts = await this.accountShape.select((ua) => [
             ua.email,
             ua.accountOf.select((p) => [
@@ -131,18 +114,18 @@ export default class CapacitorBackendProvider extends BackendProvider {
                 .or(ua.accountOf.telephone.equals(legacyPhone));
             });
 
-          const telephoneResolution = resolveTelephoneAccount(telephoneAccounts);
-          if (telephoneResolution.kind === 'ambiguous') {
-            throw new AmbiguousTelephoneIdentityError(telephoneResolution);
+          const resolution = resolveTelephoneAccount([
+            ...webIdAccounts,
+            ...telephoneAccounts,
+          ]);
+          if (resolution.kind === 'ambiguous') {
+            throw new AmbiguousTelephoneIdentityError(resolution);
           }
-          account =
-            telephoneResolution.kind === 'one'
-              ? telephoneResolution.account
-              : null;
+          const account = resolution.kind === 'one' ? resolution.account : null;
 
           if (account && account.accountOf) {
             console.log(
-              `Found account by telephone property for phone number ${phoneIdentifier}`
+              `Found one account across WhatsApp WebID and telephone lookups for phone number ${phoneIdentifier}`
             );
             return {
               account,
@@ -234,57 +217,97 @@ export default class CapacitorBackendProvider extends BackendProvider {
   @callable('public')
   async generateOTPWhatsapp(phoneNumber) {
     const session = this.request.session;
-    const baseUrl = 'https://waba-v2.360dialog.io';
-    const API_KEY = process.env.WA_D360_API_KEY;
+    if (!session) {
+      throw new Error('Could not send the code. Please try again.');
+    }
+
     const recipient = normalizeTelephone(phoneNumber).replace(/^\+/, '');
     if (!/^\d{8,15}$/.test(recipient)) {
       throw new Error('A valid WhatsApp phone number is required');
     }
-    if (!API_KEY) {
+    const apiKey = process.env.WA_D360_API_KEY;
+    if (!apiKey) {
       throw new Error('WA_D360_API_KEY is required to send a WhatsApp code');
     }
 
     const otp = this.generateOTP();
     // A resend invalidates an earlier code even when the provider rejects it.
     delete session.otp;
-    const url = `${baseUrl}/messages`;
 
     try {
-      const response = await this.sendMessage(url, API_KEY, otp, recipient);
+      const bearerToken = await this.getBearerToken();
+      const response = await this.sendMessage(
+        'https://waba-v2.360dialog.io/messages',
+        bearerToken,
+        apiKey,
+        otp,
+        recipient
+      );
       if (!response.ok) {
-        console.error('WhatsApp code request rejected by provider:', response.status);
+        console.error(
+          'WhatsApp code request rejected by provider:',
+          response.status
+        );
         throw new Error('Could not send the code. Please try again.');
       }
-      const data = await response.json();
-      if (!data?.messages?.[0]?.id) {
-        throw new Error('WhatsApp provider did not confirm the code request');
-      }
-      // Only make a code usable after the provider accepts the message.
-      session.otp = otp;
-      return { sent: true };
     } catch (error) {
-      console.error('WhatsApp code send failed:', error.message);
+      const message = error instanceof Error ? error.message : '';
+      if (message !== 'Could not send the code. Please try again.') {
+        console.error('WhatsApp code send failed:', message);
+      }
       throw new Error('Could not send the code. Please try again.');
     }
+
+    // HTTP 2xx is acceptance. The provider can omit messages[0].id after the
+    // message is already delivered, so the code becomes usable here.
+    session.otp = otp;
+    return { sent: true };
+  }
+
+  async getBearerToken() {
+    const username = process.env.WA_D360_USERNAME;
+    const password = process.env.WA_D360_PASSWORD;
+    if (!username || !password) {
+      throw new Error(
+        'WA_D360_USERNAME and WA_D360_PASSWORD are required to request a WhatsApp token'
+      );
+    }
+    const response = await fetch('https://hub.360dialog.io/api/v2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.access_token) {
+      console.error('WhatsApp token request rejected:', response.status);
+      throw new Error('Could not send the code. Please try again.');
+    }
+    return data.access_token;
   }
 
   generateOTP() {
     return Math.floor(100000 + Math.random() * 900000);
   }
 
-  async sendMessage(url, apiKey, otp, phoneNumber) {
+  async sendMessage(url, bearerToken, apiKey, otp, phoneNumber) {
+    const templateNamespace = process.env.WA_D360_TEMPLATE_NAMESPACE;
     const templateName = process.env.WA_D360_TEMPLATE_NAME;
-    if (!templateName) {
-      throw new Error('WA_D360_TEMPLATE_NAME is required to send a WhatsApp code');
+    if (!templateNamespace || !templateName) {
+      throw new Error(
+        'WA_D360_TEMPLATE_NAMESPACE and WA_D360_TEMPLATE_NAME are required to send a WhatsApp code'
+      );
     }
     const payload = {
       messaging_product: 'whatsapp',
       to: phoneNumber,
       type: 'template',
       template: {
+        namespace: templateNamespace,
         name: templateName,
         language: {
           code: process.env.WA_D360_TEMPLATE_LANGUAGE || 'en',
+          // Authentication templates are rejected without a deterministic policy.
+          policy: 'deterministic',
         },
         components: [
           {
@@ -314,6 +337,7 @@ export default class CapacitorBackendProvider extends BackendProvider {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `bearer ${bearerToken}`,
         'D360-API-KEY': apiKey,
       },
       body: JSON.stringify(payload),

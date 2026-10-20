@@ -43,7 +43,7 @@ Sign-in is verified by `@_linked/auth` 3:
 - When the provider's email belongs to an existing account that signed in another way, `onCallback` gets `{ error, action: 'sign_in_to_link' }`. Sign the user in the way they did before, then call `useAuth().linkOAuthIdentity`.
 - An app with an RPC exposure list must expose auth's `createOAuthNonce: 'public'` for Apple sign-in, and `linkOAuthIdentity: 'user'` to link a provider.
 
-WhatsApp sign-in asks the backend to send a code, then validates it. The server reads:
+WhatsApp sign-in asks the backend to send a code, then validates it. `generateOTPWhatsapp` returns `{ sent: true }` after the provider answers HTTP 2xx, and only then stores the code on the browser session. The server reads:
 
 - `WA_D360_API_KEY`
 - `WA_D360_USERNAME`

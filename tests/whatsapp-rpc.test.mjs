@@ -21,3 +21,14 @@ test('WhatsApp OTP generation does not log the plaintext code', () => {
     /console\.log\(['"]OTP/
   );
 });
+
+test('WhatsApp validation resolves WebID and telephone matches together', () => {
+  const source =
+    CapacitorBackendProvider.prototype.validateOTPWhatsapp.toString();
+
+  assert.match(
+    source,
+    /resolveTelephoneAccount\(\[\s*\.\.\.webIdAccounts,\s*\.\.\.telephoneAccounts,?\s*\]\)/
+  );
+  assert.doesNotMatch(source, /webIdResolution\.kind === ['"]one['"]/);
+});

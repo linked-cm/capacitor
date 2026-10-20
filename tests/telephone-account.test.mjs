@@ -65,3 +65,15 @@ test('one account linked to distinct Persons is ambiguous', () => {
   assert.deepEqual(resolution.personIds, ['urn:person:1', 'urn:person:2']);
 });
 
+test('combined WebID and telephone matches expose a legacy duplicate', () => {
+  const resolution = resolveTelephoneAccount([
+    account('urn:account:whatsapp', 'urn:person:whatsapp'),
+    account('urn:account:email', 'urn:person:email'),
+  ]);
+
+  assert.deepEqual(resolution, {
+    kind: 'ambiguous',
+    accountIds: ['urn:account:email', 'urn:account:whatsapp'],
+    personIds: ['urn:person:email', 'urn:person:whatsapp'],
+  });
+});
