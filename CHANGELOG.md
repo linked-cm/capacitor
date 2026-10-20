@@ -1,5 +1,16 @@
 # @linked.cm/capacitor
 
+## 0.3.5
+
+### Patch Changes
+
+- [#20](https://github.com/linked-cm/capacitor/pull/20) [`4f2a72a`](https://github.com/linked-cm/capacitor/commit/4f2a72a1641200837b3efbd03a3febfb024bc4d3) Thanks [@abdipramana](https://github.com/abdipramana)! - Check deterministic WhatsApp WebID and telephone-property matches together so
+  an existing duplicate identity is rejected instead of authenticated.
+
+- [#20](https://github.com/linked-cm/capacitor/pull/20) [`4f2a72a`](https://github.com/linked-cm/capacitor/commit/4f2a72a1641200837b3efbd03a3febfb024bc4d3) Thanks [@abdipramana](https://github.com/abdipramana)! - WhatsApp code requests now obtain a 360dialog access token and send it as `Authorization: bearer` together with `D360-API-KEY`. The template payload includes `WA_D360_TEMPLATE_NAMESPACE` and a deterministic language policy.
+
+  `generateOTPWhatsapp` still returns `{ sent: true }` only after the provider answers HTTP 2xx. A 2xx response without `messages[0].id` is treated as delivered, and the code is stored on the session only then. A rejected send clears any previous code. `WA_D360_USERNAME` and `WA_D360_PASSWORD` are required.
+
 ## 0.3.4
 
 ### Patch Changes
