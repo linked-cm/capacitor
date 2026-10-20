@@ -10,6 +10,8 @@ summary: WhatsApp code sends request a 360dialog bearer token, then store the co
 
 There was no plan document for this change. This report is the record.
 
+Pull request: https://github.com/linked-cm/capacitor/pull/20
+
 ## Request flow
 
 1. Refuse the call when the request has no session.
