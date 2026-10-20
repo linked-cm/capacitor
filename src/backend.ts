@@ -95,27 +95,10 @@ export default class CapacitorBackendProvider extends BackendProvider {
               });
             });
 
-          const webIdResolution = resolveTelephoneAccount(webIdAccounts);
-          if (webIdResolution.kind === 'ambiguous') {
-            throw new AmbiguousTelephoneIdentityError(webIdResolution);
-          }
-          let account =
-            webIdResolution.kind === 'one' ? webIdResolution.account : null;
-
-          if (account && account.accountOf) {
-            console.log(
-              `Found account by telephone-based webID for phone number ${phoneIdentifier}`
-            );
-            return {
-              account,
-              person: account.accountOf,
-            };
-          }
-
-          // if not found, try to find by telephone property (for old users with normal ID)
-          console.log(
-            `Account not found by webID, searching by telephone property for ${normalizedPhone}`
-          );
+          // Also query the telephone property even when the deterministic WebID
+          // exists. Legacy email accounts may own the same number; returning the
+          // WebID match early would hide that conflict and authenticate the
+          // duplicate account.
           const telephoneAccounts = await this.accountShape.select((ua) => [
             ua.email,
             ua.accountOf.select((p) => [
@@ -131,18 +114,18 @@ export default class CapacitorBackendProvider extends BackendProvider {
                 .or(ua.accountOf.telephone.equals(legacyPhone));
             });
 
-          const telephoneResolution = resolveTelephoneAccount(telephoneAccounts);
-          if (telephoneResolution.kind === 'ambiguous') {
-            throw new AmbiguousTelephoneIdentityError(telephoneResolution);
+          const resolution = resolveTelephoneAccount([
+            ...webIdAccounts,
+            ...telephoneAccounts,
+          ]);
+          if (resolution.kind === 'ambiguous') {
+            throw new AmbiguousTelephoneIdentityError(resolution);
           }
-          account =
-            telephoneResolution.kind === 'one'
-              ? telephoneResolution.account
-              : null;
+          const account = resolution.kind === 'one' ? resolution.account : null;
 
           if (account && account.accountOf) {
             console.log(
-              `Found account by telephone property for phone number ${phoneIdentifier}`
+              `Found one account across WhatsApp WebID and telephone lookups for phone number ${phoneIdentifier}`
             );
             return {
               account,
