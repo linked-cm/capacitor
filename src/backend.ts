@@ -217,33 +217,51 @@ export default class CapacitorBackendProvider extends BackendProvider {
   @callable('public')
   async generateOTPWhatsapp(phoneNumber) {
     const session = this.request.session;
-    const baseUrl = 'https://waba-v2.360dialog.io';
-    const bearerToken = await this.getBearerToken();
-    const API_KEY = process.env.WA_D360_API_KEY;
+    if (!session) {
+      throw new Error('Could not send the code. Please try again.');
+    }
+
+    const recipient = normalizeTelephone(phoneNumber).replace(/^\+/, '');
+    if (!/^\d{8,15}$/.test(recipient)) {
+      throw new Error('A valid WhatsApp phone number is required');
+    }
+    const apiKey = process.env.WA_D360_API_KEY;
+    if (!apiKey) {
+      throw new Error('WA_D360_API_KEY is required to send a WhatsApp code');
+    }
 
     const otp = this.generateOTP();
-    if (!session) {
-      throw new Error(
-        'Could not send the Whatsapp code. please try again.'
-      );
-    }
-    session.otp = otp;
-    const url = `${baseUrl}/messages`;
+    // A resend invalidates an earlier code even when the provider rejects it.
+    delete session.otp;
 
     try {
+      const bearerToken = await this.getBearerToken();
       const response = await this.sendMessage(
-        url,
+        'https://waba-v2.360dialog.io/messages',
         bearerToken,
-        API_KEY,
+        apiKey,
         otp,
-        phoneNumber
+        recipient
       );
-      const data = await response.json();
-      return { data };
+      if (!response.ok) {
+        console.error(
+          'WhatsApp code request rejected by provider:',
+          response.status
+        );
+        throw new Error('Could not send the code. Please try again.');
+      }
     } catch (error) {
-      console.error('Error sending message:', error.message);
-      throw error;
+      const message = error instanceof Error ? error.message : '';
+      if (message !== 'Could not send the code. Please try again.') {
+        console.error('WhatsApp code send failed:', message);
+      }
+      throw new Error('Could not send the code. Please try again.');
     }
+
+    // HTTP 2xx is acceptance. The provider can omit messages[0].id after the
+    // message is already delivered, so the code becomes usable here.
+    session.otp = otp;
+    return { sent: true };
   }
 
   async getBearerToken() {
@@ -254,19 +272,17 @@ export default class CapacitorBackendProvider extends BackendProvider {
         'WA_D360_USERNAME and WA_D360_PASSWORD are required to request a WhatsApp token'
       );
     }
-    const url = 'https://hub.360dialog.io/api/v2/token';
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await response.json();
-      return data.access_token;
-    } catch (error) {
-      console.error('Error getting access token:', error.message);
-      throw error;
+    const response = await fetch('https://hub.360dialog.io/api/v2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.access_token) {
+      console.error('WhatsApp token request rejected:', response.status);
+      throw new Error('Could not send the code. Please try again.');
     }
+    return data.access_token;
   }
 
   generateOTP() {
@@ -289,7 +305,8 @@ export default class CapacitorBackendProvider extends BackendProvider {
         namespace: templateNamespace,
         name: templateName,
         language: {
-          code: 'en',
+          code: process.env.WA_D360_TEMPLATE_LANGUAGE || 'en',
+          // Authentication templates are rejected without a deterministic policy.
           policy: 'deterministic',
         },
         components: [
