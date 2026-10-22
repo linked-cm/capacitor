@@ -9,6 +9,13 @@ const makeProvider = (session = {}) => {
   return provider;
 };
 
+const makeCookieLessProvider = () => {
+  const provider = Object.create(CapacitorBackendProvider.prototype);
+  Object.defineProperty(provider, 'request', { value: {} });
+  provider.generateOTP = () => 123456;
+  return provider;
+};
+
 const setEnv = (t, key, value) => {
   const previous = process.env[key];
   process.env[key] = value;
@@ -42,14 +49,19 @@ test('WhatsApp send uses the API key and configured authentication template', as
     assert.equal(payload.template.language.policy, 'deterministic');
     assert.equal(payload.template.components[0].parameters[0].text, 123456);
     assert.equal(payload.template.components[1].parameters[0].text, '123456');
-    return { ok: true, json: async () => ({ messages: [{ id: 'test-message' }] }) };
+    return {
+      ok: true,
+      json: async () => ({ messages: [{ id: 'test-message' }] }),
+    };
   });
   t.mock.method(console, 'log', () => {
     throw new Error('OTP must never be logged');
   });
   configureSend(t);
   const provider = makeProvider();
-  assert.deepEqual(await provider.generateOTPWhatsapp('+1 555 123 4567'), { sent: true });
+  assert.deepEqual(await provider.generateOTPWhatsapp('+1 555 123 4567'), {
+    sent: true,
+  });
   assert.equal(provider.request.session.otp, 123456);
 });
 
@@ -80,6 +92,36 @@ test('an accepted WhatsApp send without a message id still returns the code entr
   });
   t.mock.method(console, 'error', () => {});
   const provider = makeProvider({ otp: 654321 });
-  assert.deepEqual(await provider.generateOTPWhatsapp('15551234567'), { sent: true });
+  assert.deepEqual(await provider.generateOTPWhatsapp('15551234567'), {
+    sent: true,
+  });
   assert.equal(provider.request.session.otp, 123456);
+});
+
+test('a cookie-less send returns a phone-bound signed challenge', async (t) => {
+  configureSend(t);
+  setEnv(t, 'JWT_SECRET', 'ios-auth-regression-test-secret');
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (String(url).endsWith('/token')) {
+      return { ok: true, json: async () => ({ access_token: 'token-1' }) };
+    }
+    return { ok: true, json: async () => ({}) };
+  });
+
+  const provider = makeCookieLessProvider();
+  const response = await provider.generateOTPWhatsapp('+62 812 3456 789');
+  assert.equal(response.sent, true);
+  assert.equal(typeof response.challenge, 'string');
+  assert.equal(
+    provider.verifyOTPChallenge('+628123456789', '123456', response.challenge),
+    true
+  );
+  assert.equal(
+    provider.verifyOTPChallenge('+628123456789', '654321', response.challenge),
+    false
+  );
+  assert.equal(
+    provider.verifyOTPChallenge('+628000000000', '123456', response.challenge),
+    false
+  );
 });

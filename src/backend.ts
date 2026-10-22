@@ -13,6 +13,7 @@ import { AuthCredential } from '@_linked/auth/shapes/AuthCredential';
 import { telephoneToWebID } from '@_linked/auth/utils/webID';
 import type { UserAccountData, UserData } from '@_linked/auth/types/auth';
 import { normalizeTelephone } from './utils/helper.js';
+import crypto from 'crypto';
 import {
   AMBIGUOUS_TELEPHONE_IDENTITY,
   AmbiguousTelephoneIdentityError,
@@ -47,7 +48,7 @@ export default class CapacitorBackendProvider extends BackendProvider {
   }
 
   @callable('public')
-  async validateOTPWhatsapp(phoneIdentifier, OPT_Input) {
+  async validateOTPWhatsapp(phoneIdentifier, OPT_Input, otpChallenge?: string) {
     try {
       if (!phoneIdentifier) {
         console.log('No phone number provided');
@@ -66,9 +67,27 @@ export default class CapacitorBackendProvider extends BackendProvider {
         return { error: 'No OTP code provided' };
       }
 
-      if (this.request.session.otp.toString() !== OPT_Input) {
+      // Browser requests normally verify against the OTP kept in their Express
+      // session. Native WebViews may not carry that cross-origin session cookie,
+      // so they verify the signed challenge returned by generateOTPWhatsapp.
+      const sessionOtp = this.request.session?.otp;
+      const otpIsValid =
+        sessionOtp !== undefined && sessionOtp !== null
+          ? sessionOtp.toString() === OPT_Input
+          : this.verifyOTPChallenge(
+              normalizedPhone,
+              String(OPT_Input),
+              otpChallenge
+            );
+
+      if (!otpIsValid) {
         console.log('OTP code is incorrect');
         return { error: 'OTP code is incorrect' };
+      }
+      // Preserve the old retry behavior for a mistyped code, but consume a
+      // successful session-backed code so it cannot be replayed.
+      if (sessionOtp !== undefined && sessionOtp !== null) {
+        delete this.request.session.otp;
       }
 
       return await Auth.login(
@@ -81,14 +100,15 @@ export default class CapacitorBackendProvider extends BackendProvider {
           // UserAccount subclass with a different target class, so querying the
           // base SIOC shape would miss their existing accounts and create a
           // duplicate telephone-only identity.
-          const webIdAccounts = await this.accountShape.select((ua) => [
-            ua.email,
-            ua.accountOf.select((p) => [
-              p.givenName,
-              p.familyName,
-              p.telephone,
-            ]),
-          ])
+          const webIdAccounts = await this.accountShape
+            .select((ua) => [
+              ua.email,
+              ua.accountOf.select((p) => [
+                p.givenName,
+                p.familyName,
+                p.telephone,
+              ]),
+            ])
             .where((ua) => {
               return ua.accountOf.equals({
                 id: telephoneWebId,
@@ -99,14 +119,15 @@ export default class CapacitorBackendProvider extends BackendProvider {
           // exists. Legacy email accounts may own the same number; returning the
           // WebID match early would hide that conflict and authenticate the
           // duplicate account.
-          const telephoneAccounts = await this.accountShape.select((ua) => [
-            ua.email,
-            ua.accountOf.select((p) => [
-              p.givenName,
-              p.familyName,
-              p.telephone,
-            ]),
-          ])
+          const telephoneAccounts = await this.accountShape
+            .select((ua) => [
+              ua.email,
+              ua.accountOf.select((p) => [
+                p.givenName,
+                p.familyName,
+                p.telephone,
+              ]),
+            ])
             .where((ua) => {
               // Try normalized phone first, but also support legacy stored strings.
               return ua.accountOf.telephone
@@ -217,9 +238,6 @@ export default class CapacitorBackendProvider extends BackendProvider {
   @callable('public')
   async generateOTPWhatsapp(phoneNumber) {
     const session = this.request.session;
-    if (!session) {
-      throw new Error('Could not send the code. Please try again.');
-    }
 
     const recipient = normalizeTelephone(phoneNumber).replace(/^\+/, '');
     if (!/^\d{8,15}$/.test(recipient)) {
@@ -232,7 +250,9 @@ export default class CapacitorBackendProvider extends BackendProvider {
 
     const otp = this.generateOTP();
     // A resend invalidates an earlier code even when the provider rejects it.
-    delete session.otp;
+    if (session) {
+      delete session.otp;
+    }
 
     try {
       const bearerToken = await this.getBearerToken();
@@ -260,8 +280,82 @@ export default class CapacitorBackendProvider extends BackendProvider {
 
     // HTTP 2xx is acceptance. The provider can omit messages[0].id after the
     // message is already delivered, so the code becomes usable here.
-    session.otp = otp;
-    return { sent: true };
+    if (session) {
+      session.otp = otp;
+      return { sent: true };
+    }
+
+    // iOS native calls can be cookie-less. Return an opaque proof that lets the
+    // server validate the entered code without storing the plaintext OTP in the
+    // client or relying on process-local memory (the app runs multiple workers).
+    return {
+      sent: true,
+      challenge: this.createOTPChallenge(`+${recipient}`, otp),
+    };
+  }
+
+  private otpChallengeSecret(): string {
+    // Prefer the application's authentication secret. The WhatsApp API key is
+    // a fallback for installations that have not configured JWT auth yet.
+    const secret = process.env.JWT_SECRET || process.env.WA_D360_API_KEY;
+    if (!secret) {
+      throw new Error(
+        'An auth or WhatsApp secret is required to verify a WhatsApp code'
+      );
+    }
+    return secret;
+  }
+
+  private createOTPChallenge(phoneNumber: string, otp: number): string {
+    // The payload is readable but cannot be changed or matched to an OTP without
+    // the server secret: the HMAC covers both the payload and the six-digit code.
+    const payload = Buffer.from(
+      JSON.stringify({
+        phoneNumber,
+        expiresAt: Date.now() + 10 * 60 * 1000,
+        nonce: crypto.randomBytes(16).toString('base64url'),
+      })
+    ).toString('base64url');
+    const signature = crypto
+      .createHmac('sha256', this.otpChallengeSecret())
+      .update(`${payload}.${otp}`)
+      .digest('base64url');
+    return `${payload}.${signature}`;
+  }
+
+  private verifyOTPChallenge(
+    phoneNumber: string,
+    otp: string,
+    challenge?: string
+  ): boolean {
+    if (!challenge) return false;
+    const [payload, signature, extra] = challenge.split('.');
+    if (!payload || !signature || extra) return false;
+
+    let claims: { phoneNumber?: unknown; expiresAt?: unknown };
+    try {
+      claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    } catch {
+      return false;
+    }
+    if (
+      claims.phoneNumber !== phoneNumber ||
+      typeof claims.expiresAt !== 'number' ||
+      claims.expiresAt < Date.now()
+    ) {
+      return false;
+    }
+
+    const expected = crypto
+      .createHmac('sha256', this.otpChallengeSecret())
+      .update(`${payload}.${otp}`)
+      .digest();
+    const received = Buffer.from(signature, 'base64url');
+    // Constant-time comparison avoids leaking how much of a signature matched.
+    return (
+      received.length === expected.length &&
+      crypto.timingSafeEqual(received, expected)
+    );
   }
 
   async getBearerToken() {

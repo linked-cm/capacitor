@@ -47,6 +47,9 @@ export const SigninWithWhatsappButton = ({
   const [isLoading, setLoading] = React.useState(false);
   const [showPhoneError, setShowPhoneError] = React.useState(false);
   const [sendError, setSendError] = React.useState(false);
+  // Present only when the backend could not use a cookie-backed session (for
+  // example, an iOS WebView calling the staging origin).
+  const [otpChallenge, setOTPChallenge] = React.useState<string>();
   const isValid = isPhoneValid(phoneNumber);
 
   const auth = useAuth();
@@ -59,27 +62,31 @@ export const SigninWithWhatsappButton = ({
 
   const validateOTP = (phone: string, otp: string) => {
     if (!phone || !otp) return;
-    Server.call(packageName, 'validateOTPWhatsapp', phone, otp).then(
-      (response) => {
-        if (response && response.auth) {
-          // A browser gets the tokens as httpOnly cookies the server already set; only a
-          // native client (body transport) receives refreshToken. The expiry fields size the
-          // refresh token in native storage to the server's record.
-          auth.updateAuth({
-            auth: response.auth,
-            accessToken: response.accessToken,
-            refreshToken: response.refreshToken,
-            refreshTokenExpiresIn: response.refreshTokenExpiresIn,
-            refreshTokenExpiresAt: response.refreshTokenExpiresAt,
-          });
-          onSuccess(true);
-        } else if (response?.error) {
-          alert(response.error);
-        } else {
-          onSuccess(false);
-        }
+    Server.call(
+      packageName,
+      'validateOTPWhatsapp',
+      phone,
+      otp,
+      otpChallenge
+    ).then((response) => {
+      if (response && response.auth) {
+        // A browser gets the tokens as httpOnly cookies the server already set; only a
+        // native client (body transport) receives refreshToken. The expiry fields size the
+        // refresh token in native storage to the server's record.
+        auth.updateAuth({
+          auth: response.auth,
+          accessToken: response.accessToken,
+          refreshToken: response.refreshToken,
+          refreshTokenExpiresIn: response.refreshTokenExpiresIn,
+          refreshTokenExpiresAt: response.refreshTokenExpiresAt,
+        });
+        onSuccess(true);
+      } else if (response?.error) {
+        alert(response.error);
+      } else {
+        onSuccess(false);
       }
-    );
+    });
   };
 
   const sendWhatsappMessage = (phone: string) => {
@@ -96,6 +103,9 @@ export const SigninWithWhatsappButton = ({
           setSendError(true);
           return;
         }
+        // Echo this opaque value with the entered code. It contains no plaintext
+        // OTP and the server rejects modification, expiry, or another phone.
+        setOTPChallenge(response.challenge);
         setOTPField(true);
       })
       .catch(() => {
