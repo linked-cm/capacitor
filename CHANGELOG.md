@@ -1,5 +1,11 @@
 # @linked.cm/capacitor
 
+## 0.3.6
+
+### Patch Changes
+
+- [#22](https://github.com/linked-cm/capacitor/pull/22) [`4c50080`](https://github.com/linked-cm/capacitor/commit/4c50080dd9456b730e3a16a1a9e12d07c198bd01) Thanks [@abdipramana](https://github.com/abdipramana)! - Support WhatsApp OTP sign-in in cookie-less native clients with short-lived signed challenges.
+
 ## 0.3.5
 
 ### Patch Changes
