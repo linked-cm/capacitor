@@ -1,5 +1,11 @@
 # @linked.cm/capacitor
 
+## 0.3.7
+
+### Patch Changes
+
+- [#24](https://github.com/linked-cm/capacitor/pull/24) [`c975917`](https://github.com/linked-cm/capacitor/commit/c975917de2b4d53822a2e6ea751960e2b183b21a) Thanks [@abdipramana](https://github.com/abdipramana)! - Fix manual Capgo OTA downloads by forwarding the checksum returned by `getLatest()` to the native downloader. Encrypted and delta updates now also receive the returned session key and manifest.
+
 ## 0.3.6
 
 ### Patch Changes
