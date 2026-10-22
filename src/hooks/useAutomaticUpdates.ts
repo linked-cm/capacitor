@@ -13,7 +13,11 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { CapacitorUpdater } from '@capgo/capacitor-updater';
+import {
+  CapacitorUpdater,
+  type DownloadOptions,
+  type LatestVersion,
+} from '@capgo/capacitor-updater';
 import {
   AppUpdate,
   AppUpdateAvailability,
@@ -55,6 +59,16 @@ const isNoUpdateCondition = (error: unknown) => {
     message.includes('disable_auto_update')
   );
 };
+
+export const getDownloadOptions = (
+  latest: LatestVersion & { url: string }
+): DownloadOptions => ({
+  url: latest.url,
+  version: latest.version,
+  checksum: latest.checksum,
+  sessionKey: latest.sessionKey,
+  manifest: latest.manifest,
+});
 
 export const useAutomaticUpdates = (): UseAutomaticUpdatesState => {
   const [otaStatus, setOtaStatus] = useState<OTAStatus>('idle');
@@ -128,10 +142,9 @@ export const useAutomaticUpdates = (): UseAutomaticUpdatesState => {
 
       try {
         // download() resolves when complete and returns BundleInfo { id, version, ... }
-        const bundle = await CapacitorUpdater.download({
-          url: latest.url,
-          version: latest.version,
-        });
+        const bundle = await CapacitorUpdater.download(
+          getDownloadOptions({ ...latest, url: latest.url })
+        );
 
         progressHandle.remove();
 
