@@ -20,10 +20,10 @@
   "license": "ISC",
   "scripts": {
     "start": "linked dev",
-    "test": "npm run build-esm && node --test tests/*.test.mjs",
+    "test": "npm run build-esm && npm run copy-to-lib && node --test tests/*.test.mjs",
     "build": "rimraf ./lib && npm run build-esm && npm run copy-to-lib",
     "build-esm": "echo \"compiling ESM\" && rimraf ./lib/esm && tsc -p tsconfig-esm.json",
-    "copy-to-lib": "echo 'copying CSS + JSON assets to lib folder' && copyfiles -u 1 'src/**/*.css' 'src/**/*.json' lib/esm"
+    "copy-to-lib": "echo 'copying CSS + Turtle assets to lib folder' && copyfiles -u 1 'src/**/*.css' 'src/**/*.ttl' lib/esm"
   },
   "keywords": [
     "linked",
@@ -54,10 +54,10 @@
   },
   "dependencies": {
     "@_linked/auth": "^3.1.0",
-    "@_linked/core": "^2.27.0",
+    "@_linked/core": "^2.37.2",
     "@_linked/primitives": "^1.8.0",
     "@_linked/react": "^2.0.0",
-    "@_linked/schema": "^1.5.0",
+    "@_linked/schema": "^1.6.0",
     "@_linked/server-utils": "^1.12.0",
     "@_linked/sioc": "^1.4.0",
     "google-libphonenumber": "3.2.33",
@@ -65,7 +65,7 @@
     "react-router-dom": "^6.22.3"
   },
   "devDependencies": {
-    "@_linked/cli": "^1.2",
+    "@_linked/cli": "^1.54.0",
     "@capacitor/app": "^7.0.0",
     "@capacitor/core": "^7.0.0",
     "@capacitor/dialog": "^7.0.0",

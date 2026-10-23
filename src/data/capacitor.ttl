@@ -1,0 +1,14 @@
+@prefix capacitor: <https://linked.cm/ont/capacitor/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix schema: <http://schema.org/> .
+
+capacitor:
+    a owl:Ontology ;
+    dcterms:description "Native app helpers for sign-in, safe area, location, and updates."@en ;
+    dcterms:title "Linked capacitor"@en .
+
+capacitor:LocationUpdateAction
+    a owl:Class ;
+    rdfs:subClassOf schema:UpdateAction .
