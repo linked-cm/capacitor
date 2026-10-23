@@ -1,11 +1,11 @@
 import { Server } from '@_linked/server-utils/utils/Server';
 import { linkedShape, packageName } from '../package.js';
 import { UpdateAction } from '@_linked/schema/shapes/UpdateAction';
-import { lincdCapacitor } from '../ontologies/lincd-capacitor.js';
+import { capacitor } from '../ontologies/capacitor.js';
 
 @linkedShape
 export class LocationUpdateAction extends UpdateAction {
-  static targetClass = lincdCapacitor.LocationUpdateAction;
+  static targetClass = capacitor.LocationUpdateAction;
 
   /**
    * update user location

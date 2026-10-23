@@ -2,7 +2,7 @@
 
 Native app helpers for social sign-in, WhatsApp one-time codes, safe area, location, and store or bundle updates.
 
-The location term stays on `http://lincd.org/ont/lincd-capacitor/`. Shape registration uses `@linked.cm/capacitor`.
+The location term `LocationUpdateAction` (a `schema:UpdateAction`) lives at `https://linked.cm/ont/capacitor/` (prefix `capacitor`), declared in `src/data/capacitor.ttl`. Before 1.0 it was `http://lincd.org/ont/lincd-capacitor/` (still exported as the deprecated `legacyNs`, and `ontologies/lincd-capacitor` re-exports `ontologies/capacitor`). Shape registration uses `@linked.cm/capacitor`.
 
 ## Public entry points
 
