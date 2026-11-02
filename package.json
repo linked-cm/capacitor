@@ -11,7 +11,14 @@
     "url": "git+ssh://git@github.com/linked-cm/capacitor.git"
   },
   "version": "0.3.7",
-  "linkedPackage": true,
+  "linked": {
+    "kind": "library"
+  },
+  "linkedOntologies": {
+    "capacitor": {
+      "namespace": "https://linked.cm/ont/capacitor/"
+    }
+  },
   "type": "module",
   "main": "lib/esm/index.js",
   "module": "lib/esm/index.js",
@@ -20,10 +27,8 @@
   "license": "ISC",
   "scripts": {
     "start": "linked dev",
-    "test": "npm run build-esm && npm run copy-to-lib && node --test tests/*.test.mjs",
-    "build": "rimraf ./lib && npm run build-esm && npm run copy-to-lib",
-    "build-esm": "echo \"compiling ESM\" && rimraf ./lib/esm && tsc -p tsconfig-esm.json",
-    "copy-to-lib": "echo 'copying CSS + Turtle assets to lib folder' && copyfiles -u 1 'src/**/*.css' 'src/**/*.ttl' lib/esm"
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "build": "linked build"
   },
   "keywords": [
     "linked",
@@ -53,19 +58,19 @@
     }
   },
   "dependencies": {
-    "@_linked/auth": "^3.1.0",
-    "@_linked/core": "^2.37.2",
-    "@_linked/primitives": "^1.8.0",
-    "@_linked/react": "^2.0.0",
-    "@_linked/schema": "^1.6.0",
-    "@_linked/server-utils": "^1.12.0",
-    "@_linked/sioc": "^1.4.0",
+    "@_linked/auth": "^3.21.0",
+    "@_linked/core": "^2.46.0",
+    "@_linked/primitives": "^1.10.0",
+    "@_linked/react": "^2.1.0",
+    "@_linked/schema": "^1.9.2",
+    "@_linked/server-utils": "^1.17.0",
+    "@_linked/sioc": "^1.6.2",
     "google-libphonenumber": "3.2.33",
     "react-international-phone": "4.0.4",
     "react-router-dom": "^6.22.3"
   },
   "devDependencies": {
-    "@_linked/cli": "^1.54.0",
+    "@_linked/cli": "^1.61.0",
     "@capacitor/app": "^7.0.0",
     "@capacitor/core": "^7.0.0",
     "@capacitor/dialog": "^7.0.0",
@@ -81,12 +86,13 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "capacitor-plugin-safe-area": "^4.0.3",
-    "copyfiles": "^2.4.1",
-    "rimraf": "^5.0.7",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "^5.7.3",
     "typescript-plugin-css-modules": "^5.1.0"
   },
   "peerDependencies": {
+    "react": "^18.2.0 || ^19.0.0",
     "@capacitor/app": ">=7 <8",
     "@capacitor/core": ">=7 <8",
     "@capacitor/dialog": ">=7 <8",

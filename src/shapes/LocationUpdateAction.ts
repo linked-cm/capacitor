@@ -1,7 +1,7 @@
 import { Server } from '@_linked/server-utils/utils/Server';
 import { linkedShape, packageName } from '../package.js';
 import { UpdateAction } from '@_linked/schema/shapes/UpdateAction';
-import { capacitor } from '../ontologies/capacitor.js';
+import * as capacitor from '../ontologies/capacitor.js';
 
 @linkedShape
 export class LocationUpdateAction extends UpdateAction {

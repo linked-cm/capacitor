@@ -11,4 +11,5 @@ capacitor:
 
 capacitor:LocationUpdateAction
     a owl:Class ;
+    rdfs:comment "An update of a user's location, sent from the device."@en ;
     rdfs:subClassOf schema:UpdateAction .

@@ -8,26 +8,21 @@ import { definedTermsFromTurtle } from '@_linked/core/ontology/hierarchy';
 import { checkShapeHierarchy } from '@_linked/core/shapes/checkShapeHierarchy';
 import '@_linked/schema/shapes/index';
 import * as capacitor from '../lib/esm/ontologies/capacitor.js';
-import * as legacy from '../lib/esm/ontologies/lincd-capacitor.js';
+import { _ontologyResource, loadData } from '../lib/esm/ontologies/capacitor.data.js';
 import '../lib/esm/shapes/index.js';
 import { packageName } from '../lib/esm/package.js';
 
 const NAMESPACE = 'https://linked.cm/ont/capacitor/';
 
-test('mints terms under https://linked.cm/ont/capacitor/ and keeps the old names as aliases', () => {
-  assert.equal(capacitor._self.id, NAMESPACE);
+test('mints terms under https://linked.cm/ont/capacitor/ and exports only terms', () => {
+  assert.equal(_ontologyResource.id, NAMESPACE);
   assert.equal(capacitor.LocationUpdateAction.id, `${NAMESPACE}LocationUpdateAction`);
-  assert.equal(capacitor.lincdCapacitor, capacitor.capacitor);
-  assert.equal(legacy.LocationUpdateAction, capacitor.LocationUpdateAction);
-  assert.equal(
-    capacitor.legacyNs('LocationUpdateAction').id,
-    'http://lincd.org/ont/lincd-capacitor/LocationUpdateAction'
-  );
+  assert.deepEqual(Object.keys(capacitor), ['LocationUpdateAction']);
   assert.equal(Prefix.getFullURI('capacitor'), NAMESPACE);
 });
 
 test('declares LocationUpdateAction, a schema:UpdateAction, in its Turtle data', async () => {
-  const defined = await definedTermsFromTurtle(await capacitor.loadData());
+  const defined = await definedTermsFromTurtle(await loadData());
   assert.ok(defined.has(capacitor.LocationUpdateAction.id));
 });
 
