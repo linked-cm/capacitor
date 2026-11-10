@@ -142,6 +142,7 @@ export function useMandatoryNativeUpdate({
   const [state, setState] = useState<MandatoryNativeUpdateState>(
     platform ? { status: 'checking' } : { status: 'not-native' }
   );
+  // Drop stale App.getInfo() results after a newer check or unmount.
   const checkSequence = useRef(0);
 
   const check = useCallback(async () => {

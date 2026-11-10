@@ -61,7 +61,9 @@ export function useReleaseGate({
   const isNative = platform !== 'web';
   const [releaseStatus, setReleaseStatus] = useState<ReleaseStatus>();
   const [statusSettled, setStatusSettled] = useState(false);
+  // Ignore stale async status results after a newer refresh/unmount.
   const loadSequence = useRef(0);
+  // Keep the latest loader without re-subscribing the effect every render.
   const loadStatusRef = useRef(loadStatus);
   loadStatusRef.current = loadStatus;
   const nativeUpdate = useMandatoryNativeUpdate({
@@ -137,6 +139,9 @@ export function useReleaseGate({
     fallbackMinimumVersion,
     releaseStatus?.minimumVersion
   );
+  // Pause OTA until status has settled and the native check used the same
+  // effective minimum; otherwise a fast App.getInfo() can enable OTA before
+  // the server minimum arrives or while a previous minimum is still showing.
   const otaEnabled =
     !isNative ||
     (statusSettled &&

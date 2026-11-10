@@ -62,10 +62,19 @@ WhatsApp sign-in asks the backend to send a code, then validates it. `generateOT
 
 `useAutomaticUpdates` runs on iOS and Android. It confirms the current bundle, checks the native store version, polls `{SITE_ROOT}/__health`, and downloads a newer bundle when the server is up. `IOS_APP_STORE_ID` is the numeric store id used when opening the store.
 
+`__health` maintenance inside `useAutomaticUpdates` is a legacy server-up
+signal for Capgo OTA timing. Release-status maintenance from `/status` is a
+separate product policy overlay owned by `useReleaseGate`. Apps that adopt the
+release gate should treat `/status` as the source of truth for maintenance UI
+and keep `__health` only as OTA infrastructure probing.
+
 Apps that enforce their own minimum installed-binary version can pause OTA
 without delaying application rendering:
 
 ```ts
+import { useAutomaticUpdates } from '@linked.cm/capacitor/hooks/useAutomaticUpdates';
+import { useMandatoryNativeUpdate } from '@linked.cm/capacitor/hooks/useMandatoryNativeUpdate';
+
 const nativeUpdate = useMandatoryNativeUpdate({
   minimumVersion: status?.minimumVersion,
   fallbackMinimumVersion: COMPILED_MINIMUM_NATIVE_VERSION,
@@ -86,9 +95,16 @@ working Capgo bundle from rolling back, but skip channel, health, store, and OTA
 work. Both options default to the previous behavior for existing callers.
 
 For a complete release gate, applications inject their own status loader while
-the package owns the reusable lifecycle and native checks:
+the package owns the reusable lifecycle and native checks. `loadStatus` must
+return an already-normalized `ReleaseStatus` (for example via
+`ReleaseStatusClient` or `normalizeReleaseStatus`); the gate does not
+re-validate that object.
 
 ```ts
+import { useAutomaticUpdates } from '@linked.cm/capacitor/hooks/useAutomaticUpdates';
+import { useReleaseGate } from '@linked.cm/capacitor/hooks/useReleaseGate';
+import { ReleaseStatusClient } from '@linked.cm/capacitor/utils/releaseStatusClient';
+
 const statusClient = new ReleaseStatusClient({
   url: () => `${API_ROOT}/status`,
   headers: () => ({ 'X-App-Version': APP_VERSION }),
@@ -100,24 +116,40 @@ const gate = useReleaseGate({
   iosAppStoreId: IOS_APP_STORE_ID,
   androidPackageName: APP_ID,
 });
+
+useAutomaticUpdates({
+  enabled: gate.otaEnabled,
+  checkNativeStoreVersion: false,
+});
 ```
 
 The app renders immediately and decides how to present `gate.state`. Web uses
 maintenance only; iOS and Android also enforce the installed store-binary
-version. `gate.otaEnabled` remains false until the native binary is confirmed
-against the exact effective minimum.
+version. On native, `gate.otaEnabled` stays false until status has settled and
+the installed binary is confirmed against the exact effective minimum. On web
+it stays true because `useAutomaticUpdates` does not run there.
 
 On the server, inject application-owned storage into the cache. The package
 does not own configuration files, locks, authorization, or route registration:
 
 ```ts
+import {
+  createReleaseStatusHandler,
+  ReleaseStatusCache,
+} from '@linked.cm/capacitor/utils/releaseStatusCache';
+
 const cache = new ReleaseStatusCache({
   initialStatus: SAFE_COMPILED_STATUS,
   readStatus: () => readReleaseStatusFromApplicationConfig(),
 });
+cache.load();
+cache.start();
 server.get('/status', createReleaseStatusHandler(cache));
+// later, during provider/server dispose:
+cache.stop();
 ```
 
 The cache refreshes every minute by default and retains its last valid snapshot
 when reading or validation fails. The handler returns validated release fields
-with `Cache-Control: no-store`.
+with `Cache-Control: no-store`. Call `load()` before serving `/status`, keep
+`start()` running while the process is up, and `stop()` on dispose.
