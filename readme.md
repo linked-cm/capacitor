@@ -18,6 +18,11 @@ The location term `LocationUpdateAction` (a `schema:UpdateAction`) lives at `htt
 | `@linked.cm/capacitor/hooks/useCapacitor` | `CapacitorProvider` for deep links and native token storage |
 | `@linked.cm/capacitor/hooks/useAutomaticUpdates` | OTA bundle updates and a maintenance check |
 | `@linked.cm/capacitor/hooks/useNativeAppUpdate` | Store update prompt on iOS and Android |
+| `@linked.cm/capacitor/hooks/useMandatoryNativeUpdate` | App-supplied minimum-version enforcement for installed iOS and Android binaries |
+| `@linked.cm/capacitor/hooks/useReleaseGate` | Non-blocking maintenance, installed-binary, and OTA coordination |
+| `@linked.cm/capacitor/utils/releaseStatus` | Shared release-status contract and validation |
+| `@linked.cm/capacitor/utils/releaseStatusCache` | Last-valid server cache and framework-light status handler |
+| `@linked.cm/capacitor/utils/releaseStatusClient` | Deduplicated, validated status client with last-valid fallback |
 | `@linked.cm/capacitor/shapes/LocationUpdateAction` | `LocationUpdateAction.updateUserLocation` |
 | `@linked.cm/capacitor/shapes/index` | Registers the location shape without loading the components |
 | `@linked.cm/capacitor/utils/helper` | `normalizeTelephone` and `replaceLocalhostWithSiteRoot` |
@@ -56,3 +61,63 @@ WhatsApp sign-in asks the backend to send a code, then validates it. `generateOT
 `LocationEnabler` requests the device position only when the switch turns on, then calls `LocationUpdateAction.updateUserLocation`. Turning the switch off clears `enabledLocationServices` on the current account.
 
 `useAutomaticUpdates` runs on iOS and Android. It confirms the current bundle, checks the native store version, polls `{SITE_ROOT}/__health`, and downloads a newer bundle when the server is up. `IOS_APP_STORE_ID` is the numeric store id used when opening the store.
+
+Apps that enforce their own minimum installed-binary version can pause OTA
+without delaying application rendering:
+
+```ts
+const nativeUpdate = useMandatoryNativeUpdate({
+  minimumVersion: status?.minimumVersion,
+  fallbackMinimumVersion: COMPILED_MINIMUM_NATIVE_VERSION,
+  iosAppStoreId: process.env.IOS_APP_STORE_ID,
+  androidPackageName: process.env.APP_ID,
+});
+
+useAutomaticUpdates({
+  enabled:
+    nativeUpdate.state.status === 'not-native' ||
+    nativeUpdate.state.status === 'supported',
+  checkNativeStoreVersion: false,
+});
+```
+
+While disabled, automatic updates still call `notifyAppReady()` to prevent a
+working Capgo bundle from rolling back, but skip channel, health, store, and OTA
+work. Both options default to the previous behavior for existing callers.
+
+For a complete release gate, applications inject their own status loader while
+the package owns the reusable lifecycle and native checks:
+
+```ts
+const statusClient = new ReleaseStatusClient({
+  url: () => `${API_ROOT}/status`,
+  headers: () => ({ 'X-App-Version': APP_VERSION }),
+});
+
+const gate = useReleaseGate({
+  loadStatus: () => statusClient.load(),
+  fallbackMinimumVersion: COMPILED_MINIMUM_NATIVE_VERSION,
+  iosAppStoreId: IOS_APP_STORE_ID,
+  androidPackageName: APP_ID,
+});
+```
+
+The app renders immediately and decides how to present `gate.state`. Web uses
+maintenance only; iOS and Android also enforce the installed store-binary
+version. `gate.otaEnabled` remains false until the native binary is confirmed
+against the exact effective minimum.
+
+On the server, inject application-owned storage into the cache. The package
+does not own configuration files, locks, authorization, or route registration:
+
+```ts
+const cache = new ReleaseStatusCache({
+  initialStatus: SAFE_COMPILED_STATUS,
+  readStatus: () => readReleaseStatusFromApplicationConfig(),
+});
+server.get('/status', createReleaseStatusHandler(cache));
+```
+
+The cache refreshes every minute by default and retains its last valid snapshot
+when reading or validation fails. The handler returns validated release fields
+with `Cache-Control: no-store`.
