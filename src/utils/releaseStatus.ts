@@ -38,7 +38,7 @@ export function isMaintenancePlatform(
 }
 
 export function assertStableReleaseVersion(value: unknown): string {
-  if (typeof value !== 'string' || !STABLE_VERSION.test(value.trim())) {
+  if (!isStableReleaseVersion(value)) {
     throw new Error('minimumVersion must use stable X.Y.Z format');
   }
   return value.trim();
