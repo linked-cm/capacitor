@@ -81,6 +81,7 @@
     "@capgo/capacitor-updater": "^7.4.0",
     "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.29.8",
+    "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
     "@tolgee/react": "^5.33.0",
     "@types/node": "^20.12.7",
