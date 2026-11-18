@@ -35,6 +35,20 @@ export type UseAutomaticUpdatesState = {
   retryMaintenanceCheck: () => void;
 };
 
+export type UseAutomaticUpdatesOptions = {
+  /** Pause channel, health, store, and OTA work without delaying app render. */
+  enabled?: boolean;
+  /** Disable when a separate mandatory native-version hook owns store updates. */
+  checkNativeStoreVersion?: boolean;
+};
+
+export const resolveAutomaticUpdateOptions = (
+  options: UseAutomaticUpdatesOptions = {}
+) => ({
+  enabled: options.enabled ?? true,
+  checkNativeStoreVersion: options.checkNativeStoreVersion ?? true,
+});
+
 const MAINTENANCE_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
 const getIosAppStoreId = () => process.env.IOS_APP_STORE_ID?.trim() || '';
 
@@ -70,7 +84,11 @@ export const getDownloadOptions = (
   manifest: latest.manifest,
 });
 
-export const useAutomaticUpdates = (): UseAutomaticUpdatesState => {
+export const useAutomaticUpdates = (
+  options: UseAutomaticUpdatesOptions = {}
+): UseAutomaticUpdatesState => {
+  const { enabled, checkNativeStoreVersion } =
+    resolveAutomaticUpdateOptions(options);
   const [otaStatus, setOtaStatus] = useState<OTAStatus>('idle');
   const [otaProgress, setOtaProgress] = useState(0);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -171,22 +189,26 @@ export const useAutomaticUpdates = (): UseAutomaticUpdatesState => {
   }, []);
 
   const retryOTA = useCallback(() => {
+    if (!enabled) return;
     setOtaStatus('idle');
     setOtaProgress(0);
     checkAndDownloadOTA();
-  }, [checkAndDownloadOTA]);
+  }, [checkAndDownloadOTA, enabled]);
 
   const retryMaintenanceCheck = useCallback(async () => {
+    if (!enabled) return;
     const serverUp = await checkMaintenance();
     if (serverUp) {
       console.log('✅ [MaintenanceCheck] Server back, checking OTA...');
       otaCheckedRef.current = true;
       await checkAndDownloadOTA();
     }
-  }, [checkMaintenance, checkAndDownloadOTA]);
+  }, [checkMaintenance, checkAndDownloadOTA, enabled]);
 
   useEffect(() => {
     if (Capacitor.getPlatform() === 'web') return;
+
+    let disposed = false;
 
     (async () => {
       // Step 1: Confirm current bundle is OK (prevents Capgo rollback)
@@ -195,6 +217,10 @@ export const useAutomaticUpdates = (): UseAutomaticUpdatesState => {
       } catch (err) {
         console.warn('⚠️ [UpdateCheck] notifyAppReady failed:', err);
       }
+
+      // Rendering is independent from OTA. A mandatory binary check can pause
+      // all update work while still confirming this bundle to prevent rollback.
+      if (disposed || !enabled) return;
 
       // Step 2: Ensure we're on production channel
       try {
@@ -220,8 +246,10 @@ export const useAutomaticUpdates = (): UseAutomaticUpdatesState => {
         console.warn('⚠️ Could not get Capgo channel:', error);
       }
 
+      if (disposed) return;
+
       // Step 3: Check native app version (store update takes priority over OTA)
-      if (Capacitor.isNativePlatform()) {
+      if (checkNativeStoreVersion && Capacitor.isNativePlatform()) {
         const nativeUpdateAvailable = await checkNativeVersion();
         if (nativeUpdateAvailable) {
           console.log('🛑 [UpdateCheck] Native update required, stopping OTA');
@@ -229,11 +257,14 @@ export const useAutomaticUpdates = (): UseAutomaticUpdatesState => {
         }
       }
 
+      if (disposed) return;
+
       // Step 4: Maintenance check
       const serverUp = await checkMaintenance();
 
       // Step 5: Poll maintenance every 1 minute; trigger OTA when server recovers
       maintenanceIntervalRef.current = setInterval(async () => {
+        if (disposed) return;
         const up = await checkMaintenance();
         if (up && !otaCheckedRef.current) {
           console.log(
@@ -257,11 +288,18 @@ export const useAutomaticUpdates = (): UseAutomaticUpdatesState => {
     })();
 
     return () => {
+      disposed = true;
       if (maintenanceIntervalRef.current) {
         clearInterval(maintenanceIntervalRef.current);
+        maintenanceIntervalRef.current = null;
       }
     };
-  }, [checkMaintenance, checkAndDownloadOTA]);
+  }, [
+    checkMaintenance,
+    checkAndDownloadOTA,
+    checkNativeStoreVersion,
+    enabled,
+  ]);
 
   // --- Native (store) update: uses @capawesome/capacitor-app-update ---
   const checkNativeVersion = async (): Promise<boolean> => {
