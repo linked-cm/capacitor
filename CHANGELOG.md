@@ -1,5 +1,11 @@
 # @linked.cm/capacitor
 
+## 1.1.1
+
+### Patch Changes
+
+- [#30](https://github.com/linked-cm/capacitor/pull/30) [`35157dd`](https://github.com/linked-cm/capacitor/commit/35157dd11419004de0cb14491d3d17662447f1df) Thanks [@abdipramana](https://github.com/abdipramana)! - Add an optional `channel` to `useAutomaticUpdates` so apps can prefer a Capgo Live Update channel other than `production` (for example `dev` for staging OTA). Empty values still default to `production`. Capgo dashboard device overrides continue to win when `allowSet` is false.
+
 ## 1.1.0
 
 ### Minor Changes
