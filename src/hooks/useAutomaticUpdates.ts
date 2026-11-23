@@ -6,7 +6,7 @@
  *
  * With autoUpdate: false in capacitor.config.ts, we have full manual control:
  * 1. notifyAppReady → confirm current bundle (prevent rollback)
- * 2. Check Capgo channel → switch to production if needed
+ * 2. Check Capgo channel → switch to the configured channel if needed
  * 3. Check native app version → if outdated, show store update and stop
  * 4. Check maintenance (HEAD request to SITE_ROOT) → on start + every 1 min
  * 5. If server up → getLatest() → download with progress → set + reload
@@ -40,13 +40,22 @@ export type UseAutomaticUpdatesOptions = {
   enabled?: boolean;
   /** Disable when a separate mandatory native-version hook owns store updates. */
   checkNativeStoreVersion?: boolean;
+  /**
+   * Capgo Live Update channel to prefer when the device allows self-assignment.
+   * Defaults to `production`. Empty/whitespace values fall back to `production`.
+   * Capgo dashboard device overrides still win when `allowSet` is false.
+   */
+  channel?: string;
 };
+
+const DEFAULT_CAPGO_CHANNEL = 'production';
 
 export const resolveAutomaticUpdateOptions = (
   options: UseAutomaticUpdatesOptions = {}
 ) => ({
   enabled: options.enabled ?? true,
   checkNativeStoreVersion: options.checkNativeStoreVersion ?? true,
+  channel: options.channel?.trim() || DEFAULT_CAPGO_CHANNEL,
 });
 
 const MAINTENANCE_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
@@ -87,7 +96,7 @@ export const getDownloadOptions = (
 export const useAutomaticUpdates = (
   options: UseAutomaticUpdatesOptions = {}
 ): UseAutomaticUpdatesState => {
-  const { enabled, checkNativeStoreVersion } =
+  const { enabled, checkNativeStoreVersion, channel } =
     resolveAutomaticUpdateOptions(options);
   const [otaStatus, setOtaStatus] = useState<OTAStatus>('idle');
   const [otaProgress, setOtaProgress] = useState(0);
@@ -222,24 +231,24 @@ export const useAutomaticUpdates = (
       // all update work while still confirming this bundle to prevent rollback.
       if (disposed || !enabled) return;
 
-      // Step 2: Ensure we're on production channel
+      // Step 2: Prefer the configured Capgo channel when self-assignment is allowed
       try {
         const channelInfo = await CapacitorUpdater.getChannel();
         console.log('📦 Capgo channel:', channelInfo.channel, channelInfo);
 
-        const targetChannel = 'production';
         if (
           channelInfo.channel &&
-          channelInfo.channel !== targetChannel &&
+          channelInfo.channel !== channel &&
           channelInfo.allowSet
         ) {
           try {
             await CapacitorUpdater.setChannel({
-              channel: targetChannel,
+              channel,
               triggerAutoUpdate: false,
             });
+            console.log(`📦 Capgo channel set to ${channel}`);
           } catch (error) {
-            console.warn(`⚠️ Could not switch to ${targetChannel}:`, error);
+            console.warn(`⚠️ Could not switch to ${channel}:`, error);
           }
         }
       } catch (error) {
@@ -295,6 +304,7 @@ export const useAutomaticUpdates = (
       }
     };
   }, [
+    channel,
     checkMaintenance,
     checkAndDownloadOTA,
     checkNativeStoreVersion,
