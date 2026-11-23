@@ -92,7 +92,8 @@ useAutomaticUpdates({
 
 While disabled, automatic updates still call `notifyAppReady()` to prevent a
 working Capgo bundle from rolling back, but skip channel, health, store, and OTA
-work. Both options default to the previous behavior for existing callers.
+work. `enabled`, `checkNativeStoreVersion`, and `channel` default to the
+previous behavior for existing callers (`true`, `true`, and `production`).
 
 For a complete release gate, applications inject their own status loader while
 the package owns the reusable lifecycle and native checks. `loadStatus` must
@@ -120,6 +121,9 @@ const gate = useReleaseGate({
 useAutomaticUpdates({
   enabled: gate.otaEnabled,
   checkNativeStoreVersion: false,
+  // Optional. Defaults to `production`. Use a Capgo channel such as `dev` for
+  // staging OTA. Capgo device overrides still win when `allowSet` is false.
+  channel: process.env.CAPGO_CHANNEL,
 });
 ```
 

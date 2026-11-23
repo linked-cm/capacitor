@@ -41,13 +41,34 @@ test('automatic updates preserve defaults and accept explicit gating', () => {
   assert.deepEqual(resolveAutomaticUpdateOptions(), {
     enabled: true,
     checkNativeStoreVersion: true,
+    channel: 'production',
   });
   assert.deepEqual(
     resolveAutomaticUpdateOptions({
       enabled: false,
       checkNativeStoreVersion: false,
     }),
-    { enabled: false, checkNativeStoreVersion: false }
+    {
+      enabled: false,
+      checkNativeStoreVersion: false,
+      channel: 'production',
+    }
+  );
+  assert.deepEqual(
+    resolveAutomaticUpdateOptions({ channel: 'dev' }),
+    {
+      enabled: true,
+      checkNativeStoreVersion: true,
+      channel: 'dev',
+    }
+  );
+  assert.deepEqual(
+    resolveAutomaticUpdateOptions({ channel: '  ' }),
+    {
+      enabled: true,
+      checkNativeStoreVersion: true,
+      channel: 'production',
+    }
   );
 });
 

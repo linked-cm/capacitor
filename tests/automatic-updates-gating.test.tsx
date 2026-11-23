@@ -65,4 +65,53 @@ describe('useAutomaticUpdates gating', () => {
     expect(mocks.getLatest).not.toHaveBeenCalled();
     expect(mocks.getAppUpdateInfo).not.toHaveBeenCalled();
   });
+
+  it('switches to a custom Capgo channel when self-assignment is allowed', async () => {
+    mocks.getChannel.mockResolvedValueOnce({
+      channel: 'production',
+      allowSet: true,
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true }) as Response)
+    );
+
+    renderHook(() =>
+      useAutomaticUpdates({
+        enabled: true,
+        checkNativeStoreVersion: false,
+        channel: 'dev',
+      })
+    );
+
+    await waitFor(() =>
+      expect(mocks.setChannel).toHaveBeenCalledWith({
+        channel: 'dev',
+        triggerAutoUpdate: false,
+      })
+    );
+    await waitFor(() => expect(mocks.getLatest).toHaveBeenCalledOnce());
+  });
+
+  it('leaves the Capgo channel alone when self-assignment is denied', async () => {
+    mocks.getChannel.mockResolvedValueOnce({
+      channel: 'production',
+      allowSet: false,
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true }) as Response)
+    );
+
+    renderHook(() =>
+      useAutomaticUpdates({
+        enabled: true,
+        checkNativeStoreVersion: false,
+        channel: 'dev',
+      })
+    );
+
+    await waitFor(() => expect(mocks.getLatest).toHaveBeenCalledOnce());
+    expect(mocks.setChannel).not.toHaveBeenCalled();
+  });
 });
